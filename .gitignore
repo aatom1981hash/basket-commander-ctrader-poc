@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.png
+*.exe
+*.zip
+*.log
+*.ps1
+*.py
+ghcli/
