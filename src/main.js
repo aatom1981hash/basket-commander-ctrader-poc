@@ -103,7 +103,16 @@ function closeBasket(b){
 
 function loadAccount(){
   if(!state.connected)return;
-  getAccountInformation(adapter,{}).pipe(take(1),tap(res=>{state.account=res?.payload ?? res;render();}),
+  getAccountInformation(adapter,{}).pipe(take(1),tap(res=>{
+    const data=res?.payload ?? res;
+    state.account=data;
+    if(!data?.trader){
+      state.error=`Account shape: ${JSON.stringify(res).slice(0,500)}`;
+    } else if(state.error?.startsWith("Account shape:")){
+      state.error="";
+    }
+    render();
+  }),
     catchError(err=>{state.error=`Account read failed: ${err?.message||err}`;render();return [];})).subscribe();
 }
 
