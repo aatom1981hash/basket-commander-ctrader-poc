@@ -103,13 +103,14 @@ function closeBasket(b){
 
 function loadAccount(){
   if(!state.connected)return;
-  getAccountInformation(adapter,{}).pipe(take(1),tap(res=>{state.account=res;render();}),
+  getAccountInformation(adapter,{}).pipe(take(1),tap(res=>{state.account=res?.payload ?? res;render();}),
     catchError(err=>{state.error=`Account read failed: ${err?.message||err}`;render();return [];})).subscribe();
 }
 
 function loadSymbols(){
   getLightSymbolList(adapter,{}).pipe(take(1),tap(res=>{
-    for(const s of (res.symbol||[])) state.symbols.set(s.symbolId,s);
+    const data=res?.payload ?? res;
+    for(const s of (data.symbol||[])) state.symbols.set(s.symbolId,s);
     render();
   }),catchError(()=>[])).subscribe();
 }
@@ -122,8 +123,9 @@ function loadPositionSnapshot(){
   getDealList(adapter,{fromTimestamp:from,toTimestamp:now}).pipe(
     take(1),
     tap(res=>{
+      const data=res?.payload ?? res;
       const byPosition=new Map();
-      for(const d of (res.deal||[])){
+      for(const d of (data.deal||[])){
         if(!d?.positionId || !d?.filledVolume) continue;
         if(d.dealStatus!==ServerInterfaces.ProtoDealStatus.FILLED &&
            d.dealStatus!==ServerInterfaces.ProtoDealStatus.PARTIALLY_FILLED) continue;
@@ -156,7 +158,7 @@ function loadPositionSnapshot(){
         });
       }
       state.snapshotLoaded=true;
-      if(res.hasMore) state.error="Position snapshot is partial: deal history returned more records than one response.";
+      if(data.hasMore) state.error="Position snapshot is partial: deal history returned more records than one response.";
       render();
     }),
     catchError(err=>{
