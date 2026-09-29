@@ -1,4 +1,4 @@
-:root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#f4f5f7;background:#0f1115}
+:root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:light dark;color:#f4f5f7;background:#0f1115}
 *{box-sizing:border-box}
 body{margin:0;background:#0f1115;color:#f4f5f7}
 button{font:inherit}
@@ -34,3 +34,18 @@ button{font:inherit}
 .confirm-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px}
 .hidden{display:none!important}
 @media(max-width:560px){.metrics{grid-template-columns:1fr 1fr}.metrics .metric:last-child{grid-column:1/-1}.basket-grid{grid-template-columns:1fr 1fr}.basket-grid .smallbox:last-child{grid-column:1/-1}.shell{padding-top:12px}}
+
+@media(prefers-color-scheme:light){
+:root,body{background:#f5f7fa;color:#171a20}
+.status{background:#e6eaf0;color:#46505e}
+.card{background:#fff;border-color:#dfe4eb}
+.metric,.smallbox{background:#f3f5f8}
+.label,.subtle,.empty{color:#667181}
+.section-title{color:#39424e}
+.badge{background:#e8edf3}
+.btn{background:#e1e6ed;color:#171a20}
+.btn-danger{background:#fde3e6;color:#7a202b}
+.error{background:#fde5e7;color:#7c252d}
+.note{background:#f3f6f9;border-color:#d8e0e8;color:#586576}
+.confirm-card{background:#fff;border-color:#d8dde5}
+}
