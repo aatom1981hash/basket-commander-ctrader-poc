@@ -34,6 +34,7 @@ namespace cAlgo.Plugins
         private double _trailDistance;
         private bool _trailArmed;
         private double _trailPeak;
+        private string _trailSignature = "";
 
         protected override void OnStart()
         {
@@ -308,6 +309,10 @@ namespace cAlgo.Plugins
                 return;
             }
 
+            var signature = BuildBasketSignature(positions);
+            if (_trailArmed && !string.Equals(_trailSignature, signature, StringComparison.Ordinal))
+                ResetTrail();
+
             var pnl = positions.Sum(p => p.NetProfit);
 
             if (_tpCcy > 0 && pnl >= _tpCcy)
@@ -342,11 +347,14 @@ namespace cAlgo.Plugins
             {
                 _trailArmed = true;
                 _trailPeak = pnl;
+                _trailSignature = signature;
+                SaveTrailState();
                 SetStatus($"Trailing armed at {pnl:F2}.");
             }
             else if (_trailArmed && pnl > _trailPeak)
             {
                 _trailPeak = pnl;
+                SaveTrailState();
             }
 
             if (_trailArmed && pnl <= _trailPeak - _trailDistance)
@@ -493,8 +501,9 @@ namespace cAlgo.Plugins
                 return;
             }
 
+            var totalLots = positions.Sum(p => p.Quantity);
             var result = MessageBox.Show(
-                $"Reduce managed basket by 50%?\n{positions.Length} positions",
+                $"Reduce managed basket by approximately 50%?\n{positions.Length} positions · {totalLots:F2} lots",
                 "Basket Commander",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Warning,
@@ -503,29 +512,54 @@ namespace cAlgo.Plugins
             if (result != MessageBoxResult.Yes)
                 return;
 
-            var changed = 0;
-            var skipped = 0;
-            foreach (var position in positions)
+            var modified = 0;
+            var closed = 0;
+            var failed = 0;
+
+            foreach (var group in positions.GroupBy(p => new { p.SymbolName, p.TradeType }))
             {
-                var target = position.Symbol.NormalizeVolumeInUnits(position.VolumeInUnits / 2.0, RoundingMode.Down);
-                if (target >= position.Symbol.VolumeInUnitsMin && target < position.VolumeInUnits)
+                var ordered = group.OrderByDescending(p => p.VolumeInUnits).ToArray();
+                var symbol = ordered[0].Symbol;
+                var totalVolume = ordered.Sum(p => p.VolumeInUnits);
+
+                // Keep at least 50% of the basket. Rounding UP prevents the action
+                // from closing more than requested when broker volume steps are coarse.
+                var targetRemaining = symbol.NormalizeVolumeInUnits(totalVolume / 2.0, RoundingMode.Up);
+                targetRemaining = Math.Min(totalVolume, Math.Max(0, targetRemaining));
+
+                var allocationLeft = targetRemaining;
+                foreach (var position in ordered)
                 {
-                    var tradeResult = position.ModifyVolume(target);
-                    if (tradeResult.IsSuccessful)
-                        changed++;
+                    var keep = Math.Min(position.VolumeInUnits, allocationLeft);
+                    keep = symbol.NormalizeVolumeInUnits(keep, RoundingMode.Down);
+
+                    if (keep >= symbol.VolumeInUnitsMin)
+                    {
+                        allocationLeft -= keep;
+                        if (keep < position.VolumeInUnits)
+                        {
+                            var tradeResult = position.ModifyVolume(keep);
+                            if (tradeResult.IsSuccessful)
+                                modified++;
+                            else
+                                failed++;
+                        }
+                    }
                     else
-                        skipped++;
-                }
-                else
-                {
-                    skipped++;
+                    {
+                        var tradeResult = position.Close();
+                        if (tradeResult.IsSuccessful)
+                            closed++;
+                        else
+                            failed++;
+                    }
                 }
             }
 
             if (applyBreakEven)
                 ApplyBreakEven(false);
 
-            SetStatus($"50% reduction: {changed} changed, {skipped} skipped (min volume/step or broker rejection).");
+            SetStatus($"50% reduction: {modified} resized, {closed} closed, {failed} failed.");
             RefreshUi();
         }
 
@@ -577,6 +611,23 @@ namespace cAlgo.Plugins
         {
             _trailArmed = false;
             _trailPeak = 0;
+            _trailSignature = "";
+            SaveTrailState();
+        }
+
+        private string BuildBasketSignature(Position[] positions)
+        {
+            return string.Join("|", positions
+                .OrderBy(p => p.Id)
+                .Select(p => $"{p.Id}:{p.SymbolName}:{p.TradeType}:{p.VolumeInUnits:0.########}"));
+        }
+
+        private void SaveTrailState()
+        {
+            LocalStorage.SetString("Trail Armed", _trailArmed ? "1" : "0", LocalStorageScope.Type);
+            LocalStorage.SetString("Trail Peak", _trailPeak.ToString(CultureInfo.InvariantCulture), LocalStorageScope.Type);
+            LocalStorage.SetString("Trail Signature", _trailSignature ?? "", LocalStorageScope.Type);
+            LocalStorage.Flush(LocalStorageScope.Type);
         }
 
         private void SetStatus(string text)
@@ -595,6 +646,9 @@ namespace cAlgo.Plugins
             _slPct = ReadDouble("SL Percent");
             _trailTrigger = ReadDouble("Trail Trigger");
             _trailDistance = ReadDouble("Trail Distance");
+            _trailArmed = ReadBool("Trail Armed", false);
+            _trailPeak = ReadDouble("Trail Peak");
+            _trailSignature = LocalStorage.GetString("Trail Signature", LocalStorageScope.Type) ?? "";
         }
 
         private void SaveSettings()
