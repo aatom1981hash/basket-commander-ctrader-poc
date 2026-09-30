@@ -153,8 +153,9 @@ function loadPositionSnapshot(){
     take(1),
     tap(res=>{
       const data=payloadOf(res);
+      const deals=(data.deal?.length?data.deal:(data.items||[]));
       const byPosition=new Map();
-      for(const d of (data.deal||[])){
+      for(const d of deals){
         const volume=d?.filledVolume ?? d?.volume ?? 0;
         if(!d?.positionId || !volume || !dealFilled(d.dealStatus)) continue;
         const signed=isBuySide(d.tradeSide)?volume:isSellSide(d.tradeSide)?-volume:0;
@@ -188,7 +189,6 @@ function loadPositionSnapshot(){
       }
       state.snapshotLoaded=true;
       if(!state.positions.size){
-        const deals=data.deal||[];
         state.error=`Deal debug: ${JSON.stringify({keys:Object.keys(data),count:deals.length,sample:deals.slice(0,3)}).slice(0,1400)}`;
       } else if(data.hasMore){
         state.error="Position snapshot is partial: deal history returned more records than one response.";
