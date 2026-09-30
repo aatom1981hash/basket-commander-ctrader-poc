@@ -40,7 +40,13 @@ namespace cAlgo.Plugins
             LoadSettings();
             var tab = TradeWatch.AddTab("Basket Commander Native");
             _root = new StackPanel { Orientation = Orientation.Vertical, Margin = 10 };
-            tab.Child = _root;
+            var scroll = new ScrollViewer
+            {
+                Content = _root,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+            };
+            tab.Child = scroll;
             BuildStaticUi();
             Timer.Start(TimeSpan.FromSeconds(1));
             RefreshUi();
@@ -57,6 +63,7 @@ namespace cAlgo.Plugins
             if (_root == null)
                 return;
 
+            _root.AddChild(new TextBlock { Text = "Basket Commander Native v0.3", FontSize = 16, Margin = 5 });
             _accountText = new TextBlock { FontSize = 14, Margin = 5 };
             _scopeText = new TextBlock { FontSize = 13, Margin = 5 };
             _managedText = new TextBlock { Margin = 5 };
