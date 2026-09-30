@@ -324,11 +324,13 @@ namespace cAlgo.Plugins
             if (positions.Length == 0)
                 return;
 
-            ClosePositions(positions);
-            if (_includePending)
-                CancelOrders(GetManagedPendingOrders());
+            var closed = ClosePositions(positions);
+            var cancelled = _includePending
+                ? CancelOrders(GetManagedPendingOrders())
+                : (0, 0);
             ResetTrail();
-            SetStatus(reason + " — managed basket closed.");
+            SetStatus($"{reason} — closed {closed.success}, failed {closed.failed}; " +
+                      $"pending cancelled {cancelled.Item1}, failed {cancelled.Item2}.");
         }
 
         private void CloseManagedManual()
@@ -352,11 +354,11 @@ namespace cAlgo.Plugins
             if (result != MessageBoxResult.Yes)
                 return;
 
-            ClosePositions(positions);
-            if (_includePending)
-                CancelOrders(GetManagedPendingOrders());
+            var closed = ClosePositions(positions);
+            var cancelled = _includePending ? CancelOrders(pending) : (0, 0);
             ResetTrail();
-            SetStatus("Managed basket closed.");
+            SetStatus($"Managed close: closed {closed.success}, failed {closed.failed}; " +
+                      $"pending cancelled {cancelled.Item1}, failed {cancelled.Item2}.");
             RefreshUi();
         }
 
@@ -381,11 +383,11 @@ namespace cAlgo.Plugins
             if (result != MessageBoxResult.Yes)
                 return;
 
-            ClosePositions(positions);
-            if (_includePending)
-                CancelOrders(pending);
+            var closed = ClosePositions(positions);
+            var cancelled = _includePending ? CancelOrders(pending) : (0, 0);
             ResetTrail();
-            SetStatus("Whole account basket closed.");
+            SetStatus($"Whole close: closed {closed.success}, failed {closed.failed}; " +
+                      $"pending cancelled {cancelled.Item1}, failed {cancelled.Item2}.");
             RefreshUi();
         }
 
@@ -407,25 +409,44 @@ namespace cAlgo.Plugins
             if (result != MessageBoxResult.Yes)
                 return;
 
-            ClosePositions(positions);
-            if (_includePending)
-                CancelOrders(PendingOrders
-                    .Where(o => o.SymbolName == symbolName && o.TradeType == side)
-                    .ToArray());
-            SetStatus($"{symbolName} {side} basket closed.");
+            var closed = ClosePositions(positions);
+            var pending = PendingOrders
+                .Where(o => o.SymbolName == symbolName && o.TradeType == side)
+                .ToArray();
+            var cancelled = _includePending ? CancelOrders(pending) : (0, 0);
+            SetStatus($"{symbolName} {side}: closed {closed.success}, failed {closed.failed}; " +
+                      $"pending cancelled {cancelled.Item1}, failed {cancelled.Item2}.");
             RefreshUi();
         }
 
-        private void ClosePositions(Position[] positions)
+        private (int success, int failed) ClosePositions(Position[] positions)
         {
+            var success = 0;
+            var failed = 0;
             foreach (var position in positions)
-                position.Close();
+            {
+                var result = position.Close();
+                if (result.IsSuccessful)
+                    success++;
+                else
+                    failed++;
+            }
+            return (success, failed);
         }
 
-        private void CancelOrders(PendingOrder[] orders)
+        private (int success, int failed) CancelOrders(PendingOrder[] orders)
         {
+            var success = 0;
+            var failed = 0;
             foreach (var order in orders)
-                order.Cancel();
+            {
+                var result = order.Cancel();
+                if (result.IsSuccessful)
+                    success++;
+                else
+                    failed++;
+            }
+            return (success, failed);
         }
 
         private void CloseHalfManaged(bool applyBreakEven)
