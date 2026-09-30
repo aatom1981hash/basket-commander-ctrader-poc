@@ -69,8 +69,11 @@ namespace cAlgo.Plugins
             _root.AddChild(_statusText);
 
             var modeRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = 3 };
+            var symbolModeButton = new Button { Text = "MANAGE SYMBOL BASKET", Width = 190, Margin = 3 };
+            symbolModeButton.Click += _ => SetSymbolModeFromButton();
             var wholeButton = new Button { Text = "MANAGE WHOLE BASKET", Width = 190, Margin = 3 };
             wholeButton.Click += _ => SetWholeMode();
+            modeRow.AddChild(symbolModeButton);
             modeRow.AddChild(wholeButton);
             _root.AddChild(modeRow);
 
@@ -223,6 +226,21 @@ namespace cAlgo.Plugins
             SaveSettings();
             SetStatus("Managing whole account basket.");
             RefreshUi();
+        }
+
+        private void SetSymbolModeFromButton()
+        {
+            var symbol = _managedSymbol;
+            if (string.IsNullOrWhiteSpace(symbol))
+                symbol = Positions.Select(p => p.SymbolName).FirstOrDefault() ?? "";
+
+            if (string.IsNullOrWhiteSpace(symbol))
+            {
+                SetStatus("No symbol available to manage.");
+                return;
+            }
+
+            SetSymbolMode(symbol);
         }
 
         private void SetSymbolMode(string symbol)
