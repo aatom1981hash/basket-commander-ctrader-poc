@@ -166,11 +166,12 @@ namespace cAlgo.Plugins
             var pnl = managed.Sum(p => p.NetProfit);
             var lots = managed.Sum(p => p.Quantity);
             var pendingCount = GetManagedPendingOrders().Length;
+            var pnlPct = Account.Balance > 0 ? pnl / Account.Balance * 100.0 : 0;
             _scopeText.Text = _manageWhole
                 ? "MODE: WHOLE ACCOUNT"
                 : $"MODE: SYMBOL — {_managedSymbol}";
             _managedText.Text =
-                $"Managed: {managed.Length} positions · {lots:F2} lots · P/L {pnl:F2} · Pending {pendingCount}";
+                $"Managed: {managed.Length} positions · {lots:F2} lots · P/L {pnl:F2} ({pnlPct:F2}%) · Pending {pendingCount}";
             _trailText.Text = _trailArmed
                 ? $"Trailing ARMED · peak {_trailPeak:F2} · close at {_trailPeak - _trailDistance:F2}"
                 : "Trailing not armed";
@@ -192,11 +193,20 @@ namespace cAlgo.Plugins
             {
                 var symbol = group.Key.SymbolName;
                 var side = group.Key.TradeType;
+                var totalVolume = group.Sum(p => p.VolumeInUnits);
+                var avgEntry = totalVolume > 0
+                    ? group.Sum(p => p.EntryPrice * p.VolumeInUnits) / totalVolume
+                    : 0;
+                var net = group.Sum(p => p.NetProfit);
+                var swap = group.Sum(p => p.Swap);
+                var commission = group.Sum(p => p.Commissions);
+                var avgText = avgEntry.ToString($"F{group.First().Symbol.Digits}", CultureInfo.InvariantCulture);
                 var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = 3 };
                 row.AddChild(new TextBlock
                 {
-                    Text = $"{symbol} {side} | {group.Count()} pos | {group.Sum(p => p.Quantity):F2} lots | P/L {group.Sum(p => p.NetProfit):F2}",
-                    Width = 390,
+                    Text = $"{symbol} {side} | {group.Count()} pos | {group.Sum(p => p.Quantity):F2} lots | " +
+                           $"Avg {avgText} | Net {net:F2} | Swap {swap:F2} | Comm {commission:F2}",
+                    Width = 650,
                     Margin = 5
                 });
 
