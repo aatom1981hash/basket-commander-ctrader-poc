@@ -187,7 +187,14 @@ function loadPositionSnapshot(){
         });
       }
       state.snapshotLoaded=true;
-      if(data.hasMore) state.error="Position snapshot is partial: deal history returned more records than one response.";
+      if(!state.positions.size){
+        const deals=data.deal||[];
+        state.error=`Deal debug: ${JSON.stringify({keys:Object.keys(data),count:deals.length,sample:deals.slice(0,3)}).slice(0,1400)}`;
+      } else if(data.hasMore){
+        state.error="Position snapshot is partial: deal history returned more records than one response.";
+      } else if(state.error?.startsWith("Deal debug:")){
+        state.error="";
+      }
       render();
     }),
     catchError(err=>{
