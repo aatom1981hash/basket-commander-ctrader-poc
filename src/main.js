@@ -28,6 +28,16 @@ const lots=p=>{
   return lot?td.volume/lot:td.volume||0;
 };
 
+const camelKey=k=>k?k[0].toLowerCase()+k.slice(1):k;
+function normalizeKeys(value){
+  if(Array.isArray(value)) return value.map(normalizeKeys);
+  if(value && typeof value==="object"){
+    return Object.fromEntries(Object.entries(value).map(([k,v])=>[camelKey(k),normalizeKeys(v)]));
+  }
+  return value;
+}
+const payloadOf=res=>normalizeKeys(res?.payload ?? res?.Payload ?? res);
+
 function baskets(){
   const map=new Map();
   for(const p of state.positions.values()){
@@ -104,7 +114,7 @@ function closeBasket(b){
 function loadAccount(){
   if(!state.connected)return;
   getAccountInformation(adapter,{}).pipe(take(1),tap(res=>{
-    const data=res?.payload ?? res;
+    const data=payloadOf(res);
     state.account=data;
     if(!data?.trader){
       state.error=`Account shape: ${JSON.stringify(res).slice(0,500)}`;
@@ -118,7 +128,7 @@ function loadAccount(){
 
 function loadSymbols(){
   getLightSymbolList(adapter,{}).pipe(take(1),tap(res=>{
-    const data=res?.payload ?? res;
+    const data=payloadOf(res);
     for(const s of (data.symbol||[])) state.symbols.set(s.symbolId,s);
     render();
   }),catchError(()=>[])).subscribe();
@@ -132,7 +142,7 @@ function loadPositionSnapshot(){
   getDealList(adapter,{fromTimestamp:from,toTimestamp:now}).pipe(
     take(1),
     tap(res=>{
-      const data=res?.payload ?? res;
+      const data=payloadOf(res);
       const byPosition=new Map();
       for(const d of (data.deal||[])){
         if(!d?.positionId || !d?.filledVolume) continue;
@@ -180,7 +190,7 @@ function loadPositionSnapshot(){
 }
 
 function onExecution(ev){
-  const p=ev?.position; if(!p)return;
+  const p=normalizeKeys(ev)?.position; if(!p)return;
   if(posOpen(p)) state.positions.set(p.positionId,p); else state.positions.delete(p.positionId);
   render();
 }
