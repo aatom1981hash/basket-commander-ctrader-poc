@@ -7,8 +7,8 @@ namespace cAlgo.Plugins
     [Plugin(AccessRights = AccessRights.None)]
     public class BasketCommanderNativePoc : Plugin
     {
-        private StackPanel _root;
-        private StackPanel _body;
+        private StackPanel? _root;
+        private StackPanel? _body;
 
         protected override void OnStart()
         {
@@ -30,6 +30,9 @@ namespace cAlgo.Plugins
         }
         private void RefreshUi()
         {
+            if (_root == null)
+                return;
+
             if (_body != null && _root.HasChild(_body))
                 _root.RemoveChild(_body);
 
@@ -45,6 +48,15 @@ namespace cAlgo.Plugins
                 FontSize = 14,
                 Margin = 5
             });
+
+            var closeWholeButton = new Button
+            {
+                Text = "CLOSE WHOLE BASKET",
+                Width = 180,
+                Margin = 5
+            };
+            closeWholeButton.Click += _ => CloseWholeBasket();
+            _body.AddChild(closeWholeButton);
 
             var groups = Positions
                 .GroupBy(p => new { p.SymbolName, p.TradeType })
@@ -94,6 +106,30 @@ namespace cAlgo.Plugins
             }
 
             _root.AddChild(_body);
+        }
+
+        private void CloseWholeBasket()
+        {
+            var positions = Positions.ToArray();
+
+            if (positions.Length == 0)
+                return;
+
+            var lots = positions.Sum(p => p.Quantity);
+            var result = MessageBox.Show(
+                $"Close whole basket?\n{positions.Length} positions · {lots:F2} lots",
+                "Basket Commander",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning,
+                MessageBoxResult.No);
+
+            if (result != MessageBoxResult.Yes)
+                return;
+
+            foreach (var position in positions)
+                position.Close();
+
+            RefreshUi();
         }
 
         private void CloseBasket(string symbolName, TradeType side)
