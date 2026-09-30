@@ -548,12 +548,12 @@ void TestFinish()
 void IntegrationSelfTest()
 {
    if(!InpIntegrationSelfTest || g_testStep==999) return;
-   if(!IsDemo() || AccountNumber()!=InpIntegrationAccount)
+   if((!IsDemo() && !IsTesting()) || AccountNumber()!=InpIntegrationAccount)
    {
       TestLog("ABORT | wrong account or not demo");
       g_testStep=999; return;
    }
-   if(!IsConnected() || !IsTradeAllowed()) return;
+   if(!IsTesting() && (!IsConnected() || !IsTradeAllowed())) return;
    if(TimeCurrent()<g_testNext) return;
 
    if(g_testStep==0)
@@ -695,9 +695,12 @@ void OnDeinit(const int reason)
 void OnTick()
 {
    CheckAccountEquity();
-   if(g_accountClosing) return;
-   if(g_split) { CheckScope(BC_SCOPE_BUY); CheckScope(BC_SCOPE_SELL); }
-   else CheckScope(BC_SCOPE_BOTH);
+   if(!g_accountClosing)
+   {
+      if(g_split) { CheckScope(BC_SCOPE_BUY); CheckScope(BC_SCOPE_SELL); }
+      else CheckScope(BC_SCOPE_BOTH);
+   }
+   IntegrationSelfTest();
 }
 void OnTimer()
 {
