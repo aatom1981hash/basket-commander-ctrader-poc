@@ -216,7 +216,7 @@ void CloseHalf()
    for(int i=OrdersTotal()-1;i>=0;i--)
    {
       if(!SelectTradeByPos(i)) continue;
-      if(!IsMarketType(OrderType()) || !MagicMatches() || !SymbolMatches(g_manageWhole) || !DirectionMatches(OrderType(),scope)) continue;
+      if(!IsMarketType(OrderType()) || !MagicMatches() || !SymbolMatches(false) || !DirectionMatches(OrderType(),scope)) continue;
       int ticket=OrderTicket();
       string sym=OrderSymbol();
       double before=OrderLots();
