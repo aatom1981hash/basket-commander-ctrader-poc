@@ -19,9 +19,19 @@ const fmtMoney=(v,d=2)=>{
   if(v===undefined||v===null||Number.isNaN(Number(v))) return "—";
   return new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:2}).format(Number(v)/(10**d));
 };
-const sideName=v=>v===ServerInterfaces.ProtoTradeSide.BUY?"BUY":"SELL";
-const posOpen=p=>p?.positionStatus===ServerInterfaces.ProtoPositionStatus.POSITION_STATUS_OPEN ||
-  p?.positionStatus===ServerInterfaces.ProtoPositionStatus.POSITION_STATUS_CREATED;
+const isBuySide=v=>v===ServerInterfaces.ProtoTradeSide.BUY || v==="BUY" || v==="TRADE_SIDE_BUY";
+const isSellSide=v=>v===ServerInterfaces.ProtoTradeSide.SELL || v==="SELL" || v==="TRADE_SIDE_SELL";
+const sideName=v=>isBuySide(v)?"BUY":isSellSide(v)?"SELL":String(v??"—");
+const posOpen=p=>{
+  const v=p?.positionStatus;
+  return v===ServerInterfaces.ProtoPositionStatus.POSITION_STATUS_OPEN ||
+    v===ServerInterfaces.ProtoPositionStatus.POSITION_STATUS_CREATED ||
+    v==="POSITION_STATUS_OPEN" || v==="POSITION_STATUS_CREATED" ||
+    v==="OPEN" || v==="CREATED";
+};
+const dealFilled=v=>v===ServerInterfaces.ProtoDealStatus.FILLED ||
+  v===ServerInterfaces.ProtoDealStatus.PARTIALLY_FILLED ||
+  v==="FILLED" || v==="PARTIALLY_FILLED";
 const symbolName=id=>state.symbols.get(id)?.name || `#${id}`;
 const lots=p=>{
   const td=p?.tradeData||{}; const lot=td.lotSize||state.symbols.get(td.symbolId)?.lotSize;
@@ -145,10 +155,10 @@ function loadPositionSnapshot(){
       const data=payloadOf(res);
       const byPosition=new Map();
       for(const d of (data.deal||[])){
-        if(!d?.positionId || !d?.filledVolume) continue;
-        if(d.dealStatus!==ServerInterfaces.ProtoDealStatus.FILLED &&
-           d.dealStatus!==ServerInterfaces.ProtoDealStatus.PARTIALLY_FILLED) continue;
-        const signed=d.tradeSide===ServerInterfaces.ProtoTradeSide.BUY?d.filledVolume:-d.filledVolume;
+        const volume=d?.filledVolume ?? d?.volume ?? 0;
+        if(!d?.positionId || !volume || !dealFilled(d.dealStatus)) continue;
+        const signed=isBuySide(d.tradeSide)?volume:isSellSide(d.tradeSide)?-volume:0;
+        if(!signed) continue;
         const cur=byPosition.get(d.positionId)||{
           positionId:d.positionId,symbolId:d.symbolId,netVolume:0,
           openTimestamp:d.executionTimestamp||d.createTimestamp||now,
