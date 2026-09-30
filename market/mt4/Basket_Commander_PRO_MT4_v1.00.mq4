@@ -273,12 +273,28 @@ void CloseAllAccount()
    }
 }
 
+datetime EarliestOpenTimeForScope(int scope)
+{
+   datetime earliest=0;
+   for(int i=OrdersTotal()-1;i>=0;i--)
+   {
+      if(!SelectTradeByPos(i)) continue;
+      if(!IsMarketType(OrderType()) || OrderSymbol()!=Symbol() || !MagicMatches() || !DirectionMatches(OrderType(),scope)) continue;
+      datetime t=OrderOpenTime();
+      if(t>0 && (earliest==0 || t<earliest)) earliest=t;
+   }
+   return earliest;
+}
 void MaintainCycle(int scope)
 {
    int n=ScopePositionCount(scope,false);
    if(n>0 && g_state[scope].cycleStart<=0)
    {
-      g_state[scope].cycleStart=TimeCurrent();
+      // Adopt an already-open basket from its earliest still-open entry time.
+      // This lets ScopeRealized() include matching partial closes/history
+      // that happened before the EA was attached or restarted.
+      datetime earliest=EarliestOpenTimeForScope(scope);
+      g_state[scope].cycleStart=(earliest>0 ? earliest : TimeCurrent());
       g_state[scope].peak=0;
       g_state[scope].trailArmed=false;
       g_state[scope].be=BC_BE_OFF;
