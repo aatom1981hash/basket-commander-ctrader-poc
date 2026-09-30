@@ -49,7 +49,10 @@ bool g_split = false;
 bool g_manageWhole = false;
 bool g_panel = false;
 bool g_accountClosing = false;
+double g_accountTP = 0.0;
+double g_accountSL = 0.0;
 string g_stateKey = "";
+string g_equityKey = "";
 
 string Obj(string suffix) { return PREFIX + suffix; }
 
@@ -174,8 +177,9 @@ void SaveGlobal()
 {
    GlobalVariableSet(g_stateKey+"_MODE",g_split?1.0:0.0);
    GlobalVariableSet(g_stateKey+"_WHOLE",g_manageWhole?1.0:0.0);
-   GlobalVariableSet(g_stateKey+"_EQTP",InpAccountEquityTP);
-   GlobalVariableSet(g_stateKey+"_EQSL",InpAccountEquitySL);
+   GlobalVariableSet(g_equityKey+"_EQTP",g_accountTP);
+   GlobalVariableSet(g_equityKey+"_EQSL",g_accountSL);
+   GlobalVariableSet(g_equityKey+"_EQCLOSING",g_accountClosing?1.0:0.0);
    for(int s=0;s<3;s++) SaveScope(s);
    GlobalVariablesFlush();
 }
@@ -346,13 +350,23 @@ void CheckAccountEquity()
    double eq=AccountEquity();
    if(!g_accountClosing)
    {
-      if(InpAccountEquitySL>0 && eq<=InpAccountEquitySL) g_accountClosing=true;
-      if(InpAccountEquityTP>0 && eq>=InpAccountEquityTP) g_accountClosing=true;
+      if(g_accountSL>0 && eq<=g_accountSL) g_accountClosing=true;
+      if(g_accountTP>0 && eq>=g_accountTP) g_accountClosing=true;
+      if(g_accountClosing)
+      {
+         GlobalVariableSet(g_equityKey+"_EQCLOSING",1.0);
+         GlobalVariablesFlush();
+      }
    }
    if(g_accountClosing)
    {
       CloseAllAccount();
-      if(OrdersTotal()==0) g_accountClosing=false;
+      if(OrdersTotal()==0)
+      {
+         g_accountClosing=false;
+         GlobalVariableSet(g_equityKey+"_EQCLOSING",0.0);
+         GlobalVariablesFlush();
+      }
    }
 }
 
@@ -424,11 +438,14 @@ void CreatePanel()
 
    SetText(Obj("EQ_TITLE"),"ACCOUNT EQUITY - ALL TRADES",x+350,y+12,280,10,clrBlack);
    SetText(Obj("EQ"),"Equity: "+DoubleToString(AccountEquity(),2),x+350,y+45,280,10,clrBlack);
-   SetText(Obj("EQTP"),"TP: "+DoubleToString(InpAccountEquityTP,2),x+350,y+72);
-   SetText(Obj("EQSL"),"SL: "+DoubleToString(InpAccountEquitySL,2),x+350,y+92);
-   SetText(Obj("M_TITLE"),"MANUAL CLOSE SCOPE",x+350,y+130);
-   SetButton(Obj("MS"),"MANAGE SYMBOL BASKET",x+350,y+155,280,34,clrForestGreen);
-   SetButton(Obj("MW"),"MANAGE WHOLE BASKET",x+350,y+197,280,34,clrDimGray);
+   SetText(Obj("EQTP_L"),"Equity TP",x+350,y+72,95,9,clrDarkGreen);
+   SetEdit(Obj("EQTP_EDIT"),DoubleToString(g_accountTP,2),x+455,y+67,165,22);
+   SetText(Obj("EQSL_L"),"Equity SL",x+350,y+102,95,9,clrRed);
+   SetEdit(Obj("EQSL_EDIT"),DoubleToString(g_accountSL,2),x+455,y+97,165,22);
+   SetText(Obj("EQHELP"),"Absolute account CCY; 0 = OFF",x+350,y+130,280,8,clrBlack);
+   SetText(Obj("M_TITLE"),"MANUAL CLOSE SCOPE",x+350,y+160);
+   SetButton(Obj("MS"),"MANAGE SYMBOL BASKET",x+350,y+185,280,34,clrForestGreen);
+   SetButton(Obj("MW"),"MANAGE WHOLE BASKET",x+350,y+227,280,34,clrDimGray);
    SetText(Obj("STATUS"),"",x+12,y+310,610,9,clrBlack);
    SetText(Obj("STATUS2"),"",x+12,y+332,610,9,clrBlack);
    SetText(Obj("STATUS3"),"",x+12,y+354,610,9,clrBlack);
@@ -453,6 +470,43 @@ void ReadEdits()
    v=StringToDouble(ObjectGetString(0,Obj("TD"),OBJPROP_TEXT)); if(v>=0) g_state[g_scope].distance=v;
    SaveScope(g_scope);
 }
+bool ParseNonNegative(string text,double &v)
+{
+   StringTrimLeft(text); StringTrimRight(text);
+   if(StringLen(text)==0) return false;
+   StringReplace(text,",",".");
+   int dots=0,digits=0;
+   for(int i=0;i<StringLen(text);i++)
+   {
+      int c=StringGetChar(text,i);
+      if(c>='0' && c<='9') { digits++; continue; }
+      if(c=='.' && dots++==0) continue;
+      return false;
+   }
+   if(digits==0) return false;
+   v=StringToDouble(text);
+   return v>=0 && v<1.0e12;
+}
+void ReadEquityEdits()
+{
+   if(!g_panel || g_accountClosing) return;
+   double tp=g_accountTP,sl=g_accountSL,v=0;
+   bool ok1=ParseNonNegative(ObjectGetString(0,Obj("EQTP_EDIT"),OBJPROP_TEXT),v);
+   if(ok1) tp=v;
+   bool ok2=ParseNonNegative(ObjectGetString(0,Obj("EQSL_EDIT"),OBJPROP_TEXT),v);
+   if(ok2) sl=v;
+   bool valid=ok1 && ok2 && (tp==0 || sl==0 || sl<tp);
+   if(valid)
+   {
+      g_accountTP=tp; g_accountSL=sl;
+      GlobalVariableSet(g_equityKey+"_EQTP",g_accountTP);
+      GlobalVariableSet(g_equityKey+"_EQSL",g_accountSL);
+      GlobalVariablesFlush();
+   }
+   else Print("Basket Commander PRO MT4: Equity TP/SL ignored. Use non-negative values; SL must be below TP when both are enabled.");
+   ObjectSetString(0,Obj("EQTP_EDIT"),OBJPROP_TEXT,DoubleToString(g_accountTP,2));
+   ObjectSetString(0,Obj("EQSL_EDIT"),OBJPROP_TEXT,DoubleToString(g_accountSL,2));
+}
 void SyncEdits()
 {
    if(!g_panel) return;
@@ -461,6 +515,8 @@ void SyncEdits()
    ObjectSetString(0,Obj("TR"),OBJPROP_TEXT,DoubleToString(g_state[g_scope].trigger,2));
    ObjectSetString(0,Obj("TD"),OBJPROP_TEXT,DoubleToString(g_state[g_scope].distance,2));
    ObjectSetString(0,Obj("MODE"),OBJPROP_TEXT,g_split?"MODE: SPLIT":"MODE: COMBINED");
+   ObjectSetString(0,Obj("EQTP_EDIT"),OBJPROP_TEXT,DoubleToString(g_accountTP,2));
+   ObjectSetString(0,Obj("EQSL_EDIT"),OBJPROP_TEXT,DoubleToString(g_accountSL,2));
 }
 void UpdatePanel()
 {
@@ -487,6 +543,14 @@ int OnInit()
       return INIT_PARAMETERS_INCORRECT;
 
    g_stateKey="BCPRO4_"+IntegerToString(AccountNumber())+"_"+AccountServer()+"_"+Symbol()+"_"+IntegerToString(InpMagicNumber);
+   g_equityKey="BCPRO4_EQ_"+IntegerToString(AccountNumber())+"_"+AccountServer();
+   g_accountTP=GlobalVariableCheck(g_equityKey+"_EQTP") ? GlobalVariableGet(g_equityKey+"_EQTP") : InpAccountEquityTP;
+   g_accountSL=GlobalVariableCheck(g_equityKey+"_EQSL") ? GlobalVariableGet(g_equityKey+"_EQSL") : InpAccountEquitySL;
+   g_accountClosing=GlobalVariableCheck(g_equityKey+"_EQCLOSING") && GlobalVariableGet(g_equityKey+"_EQCLOSING")!=0;
+   if(g_accountTP<0 || g_accountSL<0 || (g_accountTP>0 && g_accountSL>0 && g_accountSL>=g_accountTP))
+   {
+      g_accountTP=InpAccountEquityTP; g_accountSL=InpAccountEquitySL; g_accountClosing=false;
+   }
    for(int s=0;s<3;s++) LoadScope(s);
    g_split=InpSeparateSides;
    if(GlobalVariableCheck(g_stateKey+"_MODE")) g_split=GlobalVariableGet(g_stateKey+"_MODE")!=0;
@@ -524,6 +588,8 @@ void OnChartEvent(const int id,const long &lparam,const double &dparam,const str
          ReadEdits();
          SyncEdits();
       }
+      else if(sparam==Obj("EQTP_EDIT") || sparam==Obj("EQSL_EDIT"))
+         ReadEquityEdits();
       return;
    }
    if(id!=CHARTEVENT_OBJECT_CLICK) return;
