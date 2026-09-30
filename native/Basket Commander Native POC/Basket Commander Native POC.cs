@@ -17,6 +17,8 @@ namespace cAlgo.Plugins
         private TextBlock? _statusText;
         private TextBox? _tpBox;
         private TextBox? _slBox;
+        private TextBox? _tpPctBox;
+        private TextBox? _slPctBox;
         private TextBox? _trailTriggerBox;
         private TextBox? _trailDistanceBox;
         private CheckBox? _pendingCheck;
@@ -26,6 +28,8 @@ namespace cAlgo.Plugins
         private bool _includePending;
         private double _tpCcy;
         private double _slCcy;
+        private double _tpPct;
+        private double _slPct;
         private double _trailTrigger;
         private double _trailDistance;
         private bool _trailArmed;
@@ -80,6 +84,13 @@ namespace cAlgo.Plugins
             AddLabeled(settingsRow, "Trail trigger", _trailTriggerBox);
             AddLabeled(settingsRow, "Trail distance", _trailDistanceBox);
             _root.AddChild(settingsRow);
+
+            var percentRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = 3 };
+            _tpPctBox = MakeBox(_tpPct);
+            _slPctBox = MakeBox(_slPct);
+            AddLabeled(percentRow, "TP % balance", _tpPctBox);
+            AddLabeled(percentRow, "SL % balance", _slPctBox);
+            _root.AddChild(percentRow);
 
             var settingsActions = new StackPanel { Orientation = Orientation.Horizontal, Margin = 3 };
             var applyButton = new Button { Text = "APPLY SETTINGS", Width = 150, Margin = 3 };
@@ -228,6 +239,8 @@ namespace cAlgo.Plugins
         {
             if (!TryReadNonNegative(_tpBox, out _tpCcy) ||
                 !TryReadNonNegative(_slBox, out _slCcy) ||
+                !TryReadNonNegative(_tpPctBox, out _tpPct) ||
+                !TryReadNonNegative(_slPctBox, out _slPct) ||
                 !TryReadNonNegative(_trailTriggerBox, out _trailTrigger) ||
                 !TryReadNonNegative(_trailDistanceBox, out _trailDistance))
             {
@@ -264,13 +277,26 @@ namespace cAlgo.Plugins
 
             if (_tpCcy > 0 && pnl >= _tpCcy)
             {
-                CloseManagedAutomatic($"TP reached ({pnl:F2})");
+                CloseManagedAutomatic($"TP CCY reached ({pnl:F2})");
                 return;
             }
 
             if (_slCcy > 0 && pnl <= -_slCcy)
             {
-                CloseManagedAutomatic($"SL reached ({pnl:F2})");
+                CloseManagedAutomatic($"SL CCY reached ({pnl:F2})");
+                return;
+            }
+
+            var balance = Account.Balance;
+            if (_tpPct > 0 && balance > 0 && pnl >= balance * _tpPct / 100.0)
+            {
+                CloseManagedAutomatic($"TP % reached ({pnl:F2})");
+                return;
+            }
+
+            if (_slPct > 0 && balance > 0 && pnl <= -(balance * _slPct / 100.0))
+            {
+                CloseManagedAutomatic($"SL % reached ({pnl:F2})");
                 return;
             }
 
@@ -308,14 +334,16 @@ namespace cAlgo.Plugins
         private void CloseManagedManual()
         {
             var positions = GetManagedPositions();
-            if (positions.Length == 0)
+            var pending = GetManagedPendingOrders();
+            if (positions.Length == 0 && (!_includePending || pending.Length == 0))
             {
-                SetStatus("No managed positions to close.");
+                SetStatus("No managed positions or included pending orders to close.");
                 return;
             }
 
             var result = MessageBox.Show(
-                $"Close managed basket?\n{positions.Length} positions · {positions.Sum(p => p.Quantity):F2} lots",
+                $"Close managed basket?\n{positions.Length} positions · {positions.Sum(p => p.Quantity):F2} lots · " +
+                $"{(_includePending ? pending.Length : 0)} pending",
                 "Basket Commander",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Warning,
@@ -335,14 +363,16 @@ namespace cAlgo.Plugins
         private void CloseWholeBasket()
         {
             var positions = Positions.ToArray();
-            if (positions.Length == 0)
+            var pending = PendingOrders.ToArray();
+            if (positions.Length == 0 && (!_includePending || pending.Length == 0))
             {
-                SetStatus("No open positions.");
+                SetStatus("No positions or included pending orders.");
                 return;
             }
 
             var result = MessageBox.Show(
-                $"Close WHOLE account basket?\n{positions.Length} positions · {positions.Sum(p => p.Quantity):F2} lots",
+                $"Close WHOLE account basket?\n{positions.Length} positions · {positions.Sum(p => p.Quantity):F2} lots · " +
+                $"{(_includePending ? pending.Length : 0)} pending",
                 "Basket Commander",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Warning,
@@ -353,7 +383,7 @@ namespace cAlgo.Plugins
 
             ClosePositions(positions);
             if (_includePending)
-                CancelOrders(PendingOrders.ToArray());
+                CancelOrders(pending);
             ResetTrail();
             SetStatus("Whole account basket closed.");
             RefreshUi();
@@ -505,6 +535,8 @@ namespace cAlgo.Plugins
             _includePending = ReadBool("Include Pending", false);
             _tpCcy = ReadDouble("TP CCY");
             _slCcy = ReadDouble("SL CCY");
+            _tpPct = ReadDouble("TP Percent");
+            _slPct = ReadDouble("SL Percent");
             _trailTrigger = ReadDouble("Trail Trigger");
             _trailDistance = ReadDouble("Trail Distance");
         }
@@ -516,6 +548,8 @@ namespace cAlgo.Plugins
             LocalStorage.SetString("Include Pending", _includePending ? "1" : "0", LocalStorageScope.Type);
             LocalStorage.SetString("TP CCY", _tpCcy.ToString(CultureInfo.InvariantCulture), LocalStorageScope.Type);
             LocalStorage.SetString("SL CCY", _slCcy.ToString(CultureInfo.InvariantCulture), LocalStorageScope.Type);
+            LocalStorage.SetString("TP Percent", _tpPct.ToString(CultureInfo.InvariantCulture), LocalStorageScope.Type);
+            LocalStorage.SetString("SL Percent", _slPct.ToString(CultureInfo.InvariantCulture), LocalStorageScope.Type);
             LocalStorage.SetString("Trail Trigger", _trailTrigger.ToString(CultureInfo.InvariantCulture), LocalStorageScope.Type);
             LocalStorage.SetString("Trail Distance", _trailDistance.ToString(CultureInfo.InvariantCulture), LocalStorageScope.Type);
             LocalStorage.Flush(LocalStorageScope.Type);
