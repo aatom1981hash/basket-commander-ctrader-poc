@@ -259,7 +259,12 @@ void CloseAllAccount()
    {
       if(!SelectTradeByPos(i)) continue;
       int ticket=OrderTicket(), type=OrderType();
-      if(IsPendingType(type)) OrderDelete(ticket,clrNONE);
+      if(IsPendingType(type))
+      {
+         ResetLastError();
+         if(!OrderDelete(ticket,clrNONE))
+            Print("Basket Commander PRO MT4 account pending delete failed ticket=",ticket," err=",GetLastError());
+      }
       else if(IsMarketType(type)) CloseTicket(ticket,OrderLots());
    }
 }
