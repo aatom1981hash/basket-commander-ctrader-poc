@@ -35,6 +35,7 @@ namespace cAlgo.Plugins
         private bool _trailArmed;
         private double _trailPeak;
         private string _trailSignature = "";
+        private DateTime _lastTrailPersistUtc = DateTime.MinValue;
 
         protected override void OnStart()
         {
@@ -59,12 +60,18 @@ namespace cAlgo.Plugins
             RefreshUi();
         }
 
+        protected override void OnStop()
+        {
+            SaveSettings();
+            SaveTrailState(true);
+        }
+
         private void BuildStaticUi()
         {
             if (_root == null)
                 return;
 
-            _root.AddChild(new TextBlock { Text = "Basket Commander Native v0.3", FontSize = 16, Margin = 5 });
+            _root.AddChild(new TextBlock { Text = "Basket Commander Native v0.4", FontSize = 16, Margin = 5 });
             _accountText = new TextBlock { FontSize = 14, Margin = 5 };
             _scopeText = new TextBlock { FontSize = 13, Margin = 5 };
             _managedText = new TextBlock { Margin = 5 };
@@ -348,13 +355,13 @@ namespace cAlgo.Plugins
                 _trailArmed = true;
                 _trailPeak = pnl;
                 _trailSignature = signature;
-                SaveTrailState();
+                SaveTrailState(true);
                 SetStatus($"Trailing armed at {pnl:F2}.");
             }
             else if (_trailArmed && pnl > _trailPeak)
             {
                 _trailPeak = pnl;
-                SaveTrailState();
+                SaveTrailState(false);
             }
 
             if (_trailArmed && pnl <= _trailPeak - _trailDistance)
@@ -609,10 +616,12 @@ namespace cAlgo.Plugins
 
         private void ResetTrail()
         {
+            var changed = _trailArmed || _trailPeak != 0 || !string.IsNullOrEmpty(_trailSignature);
             _trailArmed = false;
             _trailPeak = 0;
             _trailSignature = "";
-            SaveTrailState();
+            if (changed)
+                SaveTrailState(true);
         }
 
         private string BuildBasketSignature(Position[] positions)
@@ -622,12 +631,17 @@ namespace cAlgo.Plugins
                 .Select(p => $"{p.Id}:{p.SymbolName}:{p.TradeType}:{p.VolumeInUnits:0.########}"));
         }
 
-        private void SaveTrailState()
+        private void SaveTrailState(bool force)
         {
+            var now = DateTime.UtcNow;
+            if (!force && (now - _lastTrailPersistUtc).TotalSeconds < 5)
+                return;
+
             LocalStorage.SetString("Trail Armed", _trailArmed ? "1" : "0", LocalStorageScope.Type);
             LocalStorage.SetString("Trail Peak", _trailPeak.ToString(CultureInfo.InvariantCulture), LocalStorageScope.Type);
             LocalStorage.SetString("Trail Signature", _trailSignature ?? "", LocalStorageScope.Type);
             LocalStorage.Flush(LocalStorageScope.Type);
+            _lastTrailPersistUtc = now;
         }
 
         private void SetStatus(string text)
