@@ -431,8 +431,8 @@ void CreatePanel()
    ObjectSetInteger(0,bg,OBJPROP_CORNER,InpPanelCorner);
    ObjectSetInteger(0,bg,OBJPROP_XDISTANCE,x);
    ObjectSetInteger(0,bg,OBJPROP_YDISTANCE,y);
-   ObjectSetInteger(0,bg,OBJPROP_XSIZE,650);
-   ObjectSetInteger(0,bg,OBJPROP_YSIZE,455);
+   ObjectSetInteger(0,bg,OBJPROP_XSIZE,750);
+   ObjectSetInteger(0,bg,OBJPROP_YSIZE,620);
    ObjectSetInteger(0,bg,OBJPROP_BGCOLOR,clrGainsboro);
    ObjectSetInteger(0,bg,OBJPROP_BORDER_COLOR,clrGray);
    ObjectSetInteger(0,bg,OBJPROP_BACK,false);
@@ -444,27 +444,35 @@ void CreatePanel()
    SetText(Obj("TR_L"),"Trail trigger",x+12,y+105); SetEdit(Obj("TR"),DoubleToString(g_state[g_scope].trigger,2),x+135,y+100,110,22);
    SetText(Obj("TD_L"),"Trail distance",x+12,y+135); SetEdit(Obj("TD"),DoubleToString(g_state[g_scope].distance,2),x+135,y+130,110,22);
 
-   SetButton(Obj("HALF"),"CLOSE 50%",x+12,y+170,115,34,clrDarkOrange);
-   SetButton(Obj("HALFBE"),"50% + BE",x+135,y+170,110,34,clrSteelBlue);
-   SetButton(Obj("BE"),"BREAKEVEN",x+12,y+212,115,34,clrDimGray);
-   SetButton(Obj("CLOSE"),"CLOSE BASKET",x+135,y+212,110,34,clrRed);
-   SetButton(Obj("MODE"),g_split?"MODE: SPLIT":"MODE: COMBINED",x+12,y+254,150,34,clrDimGray);
-   SetButton(Obj("BUY"),"BUY",x+170,y+254,75,34,clrDimGray);
-   SetButton(Obj("SELL"),"SELL",x+253,y+254,75,34,clrDimGray);
+   SetButton(Obj("HALF"),"CLOSE 50%",x+12,y+168,200,36,clrDarkOrange);
+   SetButton(Obj("HALFBE"),"CLOSE 50% + BE",x+220,y+168,208,36,clrSteelBlue);
+   SetButton(Obj("BE"),"BREAKEVEN: OFF",x+12,y+211,200,36,clrDimGray);
+   SetButton(Obj("CLOSE"),"CLOSE SYMBOL BASKET",x+220,y+211,208,36,clrRed);
+   SetButton(Obj("MODE"),g_split?"MODE: SPLIT":"MODE: COMBINED",x+12,y+254,200,36,clrDimGray);
+   SetButton(Obj("BUY"),"BUY",x+220,y+254,100,36,clrDimGray);
+   SetButton(Obj("SELL"),"SELL",x+328,y+254,100,36,clrDimGray);
 
-   SetText(Obj("EQ_TITLE"),"ACCOUNT EQUITY - ALL TRADES",x+350,y+12,280,10,clrBlack);
-   SetText(Obj("EQ"),"Equity: "+DoubleToString(AccountEquity(),2),x+350,y+45,280,10,clrBlack);
-   SetText(Obj("EQTP_L"),"Equity TP",x+350,y+72,95,9,clrDarkGreen);
-   SetEdit(Obj("EQTP_EDIT"),DoubleToString(g_accountTP,2),x+455,y+67,165,22);
-   SetText(Obj("EQSL_L"),"Equity SL",x+350,y+102,95,9,clrRed);
-   SetEdit(Obj("EQSL_EDIT"),DoubleToString(g_accountSL,2),x+455,y+97,165,22);
-   SetText(Obj("EQHELP"),"Absolute account CCY; 0 = OFF",x+350,y+130,280,8,clrBlack);
-   SetText(Obj("M_TITLE"),"MANUAL CLOSE SCOPE",x+350,y+160);
-   SetButton(Obj("MS"),"MANAGE SYMBOL BASKET",x+350,y+185,280,34,clrForestGreen);
-   SetButton(Obj("MW"),"MANAGE WHOLE BASKET",x+350,y+227,280,34,clrDimGray);
-   SetText(Obj("STATUS"),"",x+12,y+310,610,9,clrBlack);
-   SetText(Obj("STATUS2"),"",x+12,y+332,610,9,clrBlack);
-   SetText(Obj("STATUS3"),"",x+12,y+354,610,9,clrBlack);
+   SetText(Obj("EQ_TITLE"),"ACCOUNT EQUITY - ALL TRADES",x+452,y+12,286,10,clrBlack);
+   SetText(Obj("BAL"),"Balance: "+DoubleToString(AccountBalance(),2)+" "+AccountCurrency(),x+452,y+45,286,10,clrBlack);
+   SetText(Obj("EQ"),"Equity: "+DoubleToString(AccountEquity(),2)+" "+AccountCurrency(),x+452,y+70,286,10,clrBlack);
+   SetText(Obj("EQTP_L"),"Equity TP",x+452,y+112,120,10,clrDarkGreen);
+   SetEdit(Obj("EQTP_EDIT"),DoubleToString(g_accountTP,2),x+580,y+108,155,24);
+   SetText(Obj("EQSL_L"),"Equity SL",x+452,y+148,120,10,clrRed);
+   SetEdit(Obj("EQSL_EDIT"),DoubleToString(g_accountSL,2),x+580,y+144,155,24);
+   SetText(Obj("EQHELP"),"Absolute account CCY; 0 = OFF",x+452,y+184,286,9,clrBlack);
+   SetText(Obj("EQHELP2"),"Press Enter to apply each field",x+452,y+207,286,9,clrBlack);
+   SetText(Obj("EQHELP3"),"Closes all symbols + pending orders",x+452,y+230,286,9,clrBlack);
+   SetText(Obj("EQSTATUS"),"",x+452,y+265,286,9,clrBlack);
+   SetText(Obj("M_TITLE"),"MANUAL CLOSE SCOPE",x+452,y+300,286,9,clrBlack);
+   SetButton(Obj("MS"),"MANAGE SYMBOL BASKET",x+452,y+325,286,36,clrForestGreen);
+   SetButton(Obj("MW"),"MANAGE WHOLE BASKET",x+452,y+369,286,36,clrDimGray);
+
+   SetText(Obj("SCOPE"),"",x+12,y+294,416,9,clrBlack);
+   for(int i=1;i<=15;i++)
+      SetText(Obj("STATUS"+IntegerToString(i)),"",x+12,y+294+(i*16),416,9,clrBlack);
+   SetText(Obj("STATUS_HALF"),"",x+12,y+554,416,9,clrBlack);
+   SetText(Obj("LEDGER"),"",x+12,y+578,416,9,clrBlack);
+   SetText(Obj("LEDGER_LAST"),"",x+12,y+596,416,9,clrBlack);
    g_panel=true;
 }
 void DeletePanel()
@@ -534,21 +542,165 @@ void SyncEdits()
    ObjectSetString(0,Obj("EQTP_EDIT"),OBJPROP_TEXT,DoubleToString(g_accountTP,2));
    ObjectSetString(0,Obj("EQSL_EDIT"),OBJPROP_TEXT,DoubleToString(g_accountSL,2));
 }
+
+string FormatSigned(double v)
+{
+   if(v>0.0000001) return "+"+DoubleToString(v,2);
+   return DoubleToString(v,2);
+}
+string ScopeNameText()
+{
+   return g_scope==BC_SCOPE_BUY ? "BUY" : (g_scope==BC_SCOPE_SELL ? "SELL" : "BOTH");
+}
+string BEText()
+{
+   if(g_state[g_scope].be==BC_BE_RECOVERY) return "RECOVERY";
+   if(g_state[g_scope].be==BC_BE_PROTECT) return "PROTECT";
+   return "OFF";
+}
+string PositionAgeText(datetime oldest)
+{
+   if(oldest<=0) return "-";
+   int sec=(int)(TimeCurrent()-oldest);
+   if(sec<0) sec=0;
+   int d=sec/86400, h=(sec%86400)/3600, m=(sec%3600)/60;
+   if(d>0) return IntegerToString(d)+"d "+IntegerToString(h)+"h "+IntegerToString(m)+"m";
+   if(h>0) return IntegerToString(h)+"h "+IntegerToString(m)+"m";
+   if(m>0) return IntegerToString(m)+"m";
+   return "<1m";
+}
+void CurrentStats(int &buyCount,int &sellCount,double &buyLots,double &sellLots,
+                  double &buyAvg,double &sellAvg,double &swap,double &best,double &worst,
+                  datetime &oldest)
+{
+   buyCount=0; sellCount=0; buyLots=0; sellLots=0; buyAvg=0; sellAvg=0;
+   swap=0; best=0; worst=0; oldest=0;
+   bool have=false;
+   double buyPx=0,sellPx=0;
+   for(int i=OrdersTotal()-1;i>=0;i--)
+   {
+      if(!SelectTradeByPos(i)) continue;
+      if(!IsMarketType(OrderType()) || OrderSymbol()!=Symbol() || !MagicMatches() || !DirectionMatches(OrderType(),g_scope)) continue;
+      double lots=OrderLots();
+      double pl=OrderProfit()+OrderSwap()+OrderCommission();
+      if(OrderType()==OP_BUY){ buyCount++; buyLots+=lots; buyPx+=OrderOpenPrice()*lots; }
+      else { sellCount++; sellLots+=lots; sellPx+=OrderOpenPrice()*lots; }
+      swap+=OrderSwap();
+      if(!have){ best=pl; worst=pl; have=true; }
+      else { if(pl>best) best=pl; if(pl<worst) worst=pl; }
+      if(oldest==0 || OrderOpenTime()<oldest) oldest=OrderOpenTime();
+   }
+   if(buyLots>0) buyAvg=buyPx/buyLots;
+   if(sellLots>0) sellAvg=sellPx/sellLots;
+}
+void TodayStats(double &realized,double &closedLots,int &closedTrades)
+{
+   realized=0; closedLots=0; closedTrades=0;
+   datetime day=StrToTime(TimeToStr(TimeCurrent(),TIME_DATE));
+   for(int i=OrdersHistoryTotal()-1;i>=0;i--)
+   {
+      if(!SelectHistoryByPos(i)) continue;
+      if(OrderCloseTime()<day) break;
+      if(!IsMarketType(OrderType()) || OrderSymbol()!=Symbol() || !MagicMatches() || !DirectionMatches(OrderType(),g_scope)) continue;
+      realized+=OrderProfit()+OrderSwap()+OrderCommission();
+      closedLots+=OrderLots();
+      closedTrades++;
+   }
+}
+void ReleaseButton(const string name)
+{
+   if(ObjectFind(0,name)>=0) ObjectSetInteger(0,name,OBJPROP_STATE,false);
+}
 void UpdatePanel()
 {
    if(!g_panel) return;
-   ObjectSetString(0,Obj("EQ"),OBJPROP_TEXT,"Equity: "+DoubleToString(AccountEquity(),2));
-   string sc=g_scope==0?"BOTH":(g_scope==1?"BUY":"SELL");
-   ObjectSetString(0,Obj("STATUS"),OBJPROP_TEXT,
-                   "Scope: "+sc+" | Close: "+(g_manageWhole?"WHOLE BASKET":"SYMBOL BASKET")+
-                   " | Positions: "+IntegerToString(ScopePositionCount(g_scope,g_manageWhole))+
-                   " | Lots: "+DoubleToString(ScopeLots(g_scope,g_manageWhole),2));
-   ObjectSetString(0,Obj("STATUS2"),OBJPROP_TEXT,
-                   "Basket P/L: "+DoubleToString(BasketPL(g_scope),2)+
-                   " | BE: "+IntegerToString(g_state[g_scope].be)+
-                   " | Trail peak: "+DoubleToString(g_state[g_scope].peak,2));
-   ObjectSetString(0,Obj("STATUS3"),OBJPROP_TEXT,
-                   "Magic: "+IntegerToString(InpMagicNumber)+" | Symbol: "+Symbol());
+
+   ObjectSetString(0,Obj("BAL"),OBJPROP_TEXT,"Balance: "+DoubleToString(AccountBalance(),2)+" "+AccountCurrency());
+   ObjectSetString(0,Obj("EQ"),OBJPROP_TEXT,"Equity: "+DoubleToString(AccountEquity(),2)+" "+AccountCurrency());
+   ObjectSetString(0,Obj("EQSTATUS"),OBJPROP_TEXT,
+                   g_accountClosing ? "CLOSING ALL / retry until flat" :
+                   ((g_accountTP>0 || g_accountSL>0) ? "Account limits: ACTIVE" : "Account limits: OFF"));
+
+   int bc,sc; double bl,sl,bavg,savg,sw,best,worst; datetime oldest;
+   CurrentStats(bc,sc,bl,sl,bavg,savg,sw,best,worst,oldest);
+   double todayPL,todayLots; int todayTrades;
+   TodayStats(todayPL,todayLots,todayTrades);
+
+   int count=bc+sc;
+   double basket=BasketPL(g_scope);
+   double floating=ScopeFloating(g_scope);
+   double realized=ScopeRealized(g_scope);
+   double bid=MarketInfo(Symbol(),MODE_BID);
+   double ask=MarketInfo(Symbol(),MODE_ASK);
+   double spread=(Point>0 ? (ask-bid)/Point : 0);
+   double margin=AccountMargin();
+   double level=(margin>0 ? AccountEquity()/margin*100.0 : 0.0);
+
+   string buyAvg=(bl>0 ? DoubleToString(bavg,Digits) : "-");
+   string sellAvg=(sl>0 ? DoubleToString(savg,Digits) : "-");
+   string bestTxt=(count>0 ? FormatSigned(best) : "-");
+   string worstTxt=(count>0 ? FormatSigned(worst) : "-");
+   string tpTxt=(g_state[g_scope].tp>0 ? "+"+DoubleToString(g_state[g_scope].tp,2) : "OFF");
+   string slTxt=(g_state[g_scope].sl>0 ? "-"+DoubleToString(g_state[g_scope].sl,2) : "OFF");
+   string trailTxt;
+   if(g_state[g_scope].trigger>0 && g_state[g_scope].distance>0)
+   {
+      if(g_state[g_scope].trailArmed)
+         trailTxt="Trail ARMED: peak "+FormatSigned(g_state[g_scope].peak)+
+                  " | floor "+FormatSigned(g_state[g_scope].peak-g_state[g_scope].distance)+
+                  " | gap "+DoubleToString(g_state[g_scope].distance,2);
+      else
+         trailTxt="Trail WAIT: trigger +"+DoubleToString(g_state[g_scope].trigger,2)+
+                  " | gap "+DoubleToString(g_state[g_scope].distance,2);
+   }
+   else trailTxt="Trail: OFF (trigger and distance must both be above 0)";
+
+   ObjectSetString(0,Obj("SCOPE"),OBJPROP_TEXT,
+                   ScopeNameText()+" | Magic "+(InpMagicNumber<0?"ALL":IntegerToString(InpMagicNumber))+
+                   " | Manual: "+(g_manageWhole?"WHOLE BASKET":"SYMBOL BASKET"));
+   ObjectSetString(0,Obj("STATUS1"),OBJPROP_TEXT,
+                   ScopeNameText()+" "+Symbol()+" | Positions: "+IntegerToString(count)+
+                   " | Total P/L: "+FormatSigned(basket)+" "+AccountCurrency());
+   ObjectSetString(0,Obj("STATUS2"),OBJPROP_TEXT,"Buy trades: "+IntegerToString(bc)+" | Buy lots: "+DoubleToString(bl,2));
+   ObjectSetString(0,Obj("STATUS3"),OBJPROP_TEXT,"Sell trades: "+IntegerToString(sc)+" | Sell lots: "+DoubleToString(sl,2));
+   ObjectSetString(0,Obj("STATUS4"),OBJPROP_TEXT,"Lot diff (Buy - Sell): "+DoubleToString(bl-sl,2));
+   ObjectSetString(0,Obj("STATUS5"),OBJPROP_TEXT,"Average open: BUY "+buyAvg+" | SELL "+sellAvg);
+   ObjectSetString(0,Obj("STATUS6"),OBJPROP_TEXT,
+                   "Market: Bid "+DoubleToString(bid,Digits)+" | Ask "+DoubleToString(ask,Digits)+
+                   " | Spread "+DoubleToString(spread,1)+" points");
+   ObjectSetString(0,Obj("STATUS7"),OBJPROP_TEXT,"Open positions: Best "+bestTxt+" | Worst "+worstTxt+" "+AccountCurrency());
+   ObjectSetString(0,Obj("STATUS8"),OBJPROP_TEXT,"Swap: "+FormatSigned(sw)+" "+AccountCurrency()+" | Basket age: "+PositionAgeText(oldest));
+   ObjectSetString(0,Obj("STATUS9"),OBJPROP_TEXT,"Today realized P/L: "+FormatSigned(todayPL)+" "+AccountCurrency());
+   ObjectSetString(0,Obj("STATUS10"),OBJPROP_TEXT,"Today closed lots: "+DoubleToString(todayLots,2)+" | Closed trades: "+IntegerToString(todayTrades));
+   ObjectSetString(0,Obj("STATUS11"),OBJPROP_TEXT,"Basket TP: "+tpTxt+" | Basket SL: "+slTxt);
+   ObjectSetString(0,Obj("STATUS12"),OBJPROP_TEXT,trailTxt);
+   ObjectSetString(0,Obj("STATUS13"),OBJPROP_TEXT,
+                   "Account: Balance "+DoubleToString(AccountBalance(),2)+" | Equity "+DoubleToString(AccountEquity(),2)+" "+AccountCurrency());
+   ObjectSetString(0,Obj("STATUS14"),OBJPROP_TEXT,
+                   "Margin: Used "+DoubleToString(margin,2)+" | Free "+DoubleToString(AccountFreeMargin(),2)+
+                   " | Level "+DoubleToString(level,1)+"%");
+   ObjectSetString(0,Obj("STATUS15"),OBJPROP_TEXT,
+                   g_state[g_scope].be==BC_BE_RECOVERY ? "Breakeven: RECOVERY | Close target 0.00 "+AccountCurrency() :
+                   (g_state[g_scope].be==BC_BE_PROTECT ? "Breakeven: PROTECT | Protected floor 0.00 "+AccountCurrency() : "Breakeven: OFF"));
+   ObjectSetString(0,Obj("STATUS_HALF"),OBJPROP_TEXT,"50%: current symbol; lot step rounded down");
+   ObjectSetString(0,Obj("LEDGER"),OBJPROP_TEXT,"Realized "+FormatSigned(realized)+" | Floating "+FormatSigned(floating));
+   ObjectSetString(0,Obj("LEDGER_LAST"),OBJPROP_TEXT,"Cycle total "+FormatSigned(basket)+" | Start "+(g_state[g_scope].cycleStart>0?TimeToStr(g_state[g_scope].cycleStart,TIME_DATE|TIME_MINUTES):"-"));
+
+   ObjectSetString(0,Obj("MODE"),OBJPROP_TEXT,g_split?"MODE: SPLIT":"MODE: COMBINED");
+   ObjectSetInteger(0,Obj("BUY"),OBJPROP_BGCOLOR,g_scope==BC_SCOPE_BUY?clrForestGreen:clrDimGray);
+   ObjectSetInteger(0,Obj("SELL"),OBJPROP_BGCOLOR,g_scope==BC_SCOPE_SELL?clrFireBrick:clrDimGray);
+   ObjectSetInteger(0,Obj("MS"),OBJPROP_BGCOLOR,g_manageWhole?clrDimGray:clrForestGreen);
+   ObjectSetInteger(0,Obj("MW"),OBJPROP_BGCOLOR,g_manageWhole?clrFireBrick:clrDimGray);
+   ObjectSetString(0,Obj("CLOSE"),OBJPROP_TEXT,g_manageWhole?"CLOSE WHOLE BASKET":"CLOSE SYMBOL BASKET");
+   ObjectSetString(0,Obj("BE"),OBJPROP_TEXT,"BREAKEVEN: "+BEText());
+   ObjectSetInteger(0,Obj("BE"),OBJPROP_BGCOLOR,
+                    g_state[g_scope].be==BC_BE_OFF?clrDimGray:
+                    (g_state[g_scope].be==BC_BE_RECOVERY?clrSteelBlue:clrForestGreen));
+
+   ReleaseButton(Obj("HALF")); ReleaseButton(Obj("HALFBE")); ReleaseButton(Obj("BE"));
+   ReleaseButton(Obj("CLOSE")); ReleaseButton(Obj("MODE")); ReleaseButton(Obj("BUY"));
+   ReleaseButton(Obj("SELL")); ReleaseButton(Obj("MS")); ReleaseButton(Obj("MW"));
+   ChartRedraw(0);
 }
 
 int OnInit()
@@ -574,6 +726,7 @@ int OnInit()
    g_scope=g_split?BC_SCOPE_BUY:BC_SCOPE_BOTH;
    CreatePanel();
    SyncEdits();
+   UpdatePanel();
    EventSetTimer(1);
    return INIT_SUCCEEDED;
 }
@@ -610,36 +763,39 @@ void OnChartEvent(const int id,const long &lparam,const double &dparam,const str
    }
    if(id!=CHARTEVENT_OBJECT_CLICK) return;
 
-   if(sparam==Obj("MS")) { g_manageWhole=false; SaveGlobal(); return; }
-   if(sparam==Obj("MW")) { g_manageWhole=true; SaveGlobal(); return; }
+   ReleaseButton(sparam);
+   ChartRedraw(0);
+
+   if(sparam==Obj("MS")) { g_manageWhole=false; SaveGlobal(); UpdatePanel(); return; }
+   if(sparam==Obj("MW")) { g_manageWhole=true; SaveGlobal(); UpdatePanel(); return; }
 
    if(sparam==Obj("MODE"))
    {
       ReadEdits();
       g_split=!g_split;
       g_scope=g_split?BC_SCOPE_BUY:BC_SCOPE_BOTH;
-      SyncEdits(); SaveGlobal(); return;
+      SyncEdits(); SaveGlobal(); UpdatePanel(); return;
    }
    if(sparam==Obj("BUY"))
    {
-      if(g_split) { ReadEdits(); g_scope=BC_SCOPE_BUY; SyncEdits(); }
+      if(g_split) { ReadEdits(); g_scope=BC_SCOPE_BUY; SyncEdits(); UpdatePanel(); }
       return;
    }
    if(sparam==Obj("SELL"))
    {
-      if(g_split) { ReadEdits(); g_scope=BC_SCOPE_SELL; SyncEdits(); }
+      if(g_split) { ReadEdits(); g_scope=BC_SCOPE_SELL; SyncEdits(); UpdatePanel(); }
       return;
    }
    if(sparam==Obj("HALF"))
    {
-      ReadEdits(); CloseHalf(); return;
+      ReadEdits(); CloseHalf(); UpdatePanel(); return;
    }
    if(sparam==Obj("HALFBE"))
    {
       ReadEdits(); CloseHalf();
       if(ScopePositionCount(g_scope,false)>0)
          g_state[g_scope].be=BasketPL(g_scope)<0?BC_BE_RECOVERY:BC_BE_PROTECT;
-      SaveScope(g_scope); return;
+      SaveScope(g_scope); UpdatePanel(); return;
    }
    if(sparam==Obj("BE"))
    {
@@ -650,6 +806,6 @@ void OnChartEvent(const int id,const long &lparam,const double &dparam,const str
    }
    if(sparam==Obj("CLOSE"))
    {
-      ReadEdits(); CloseBasket(g_scope,g_manageWhole); return;
+      ReadEdits(); CloseBasket(g_scope,g_manageWhole); UpdatePanel(); return;
    }
 }
