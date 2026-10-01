@@ -56,6 +56,7 @@ ENUM_BREAKEVEN_MODE gBreakevenMode = BREAKEVEN_OFF;
 bool   gTesterMode     = false;
 bool   gVisualMode     = false;
 bool   gPanelCreated   = false;
+bool   gStatsExpanded  = true;
 bool   gHalfCloseBusy = false;
 ulong  gHalfCloseFinishedMs = 0;
 string gHalfCloseStatus = "50%: current symbol; lot step rounded down";
@@ -588,6 +589,51 @@ string SettingsKey(const string name)
    return SettingsPrefix() + name;
 }
 //+------------------------------------------------------------------+
+void DeleteStateGV(const string key)
+{
+   if(GlobalVariableCheck(key)) GlobalVariableDel(key);
+}
+void ClearBasketPersistentState()
+{
+   if(gTesterMode || gStateKey=="") return;
+   int view=gScope;
+   string names[]={"CLOSING","PENDING_BE","POS","NEG","NEG_PROFIT_LOCK","BASKET_SL_ARMED",
+                   "TRAIL_TRIGGER","TRAIL_DISTANCE","TRAIL_ARMED","TRAIL_PEAK","BREAKEVEN_MODE"};
+   for(int scope=0;scope<3;scope++)
+   {
+      gScope=scope;
+      for(int i=0;i<ArraySize(names);i++) DeleteStateGV(SettingsKey(names[i]));
+      FileDelete(LedgerFile(scope));
+      FileDelete(LedgerFile(scope)+".tmp");
+   }
+   gScope=view;
+   DeleteStateGV(gStateKey+"_MODE");
+   DeleteStateGV(gStateKey+"_MANAGE_WHOLE");
+   DeleteStateGV(gStateKey+"_EQTP");
+   DeleteStateGV(gStateKey+"_EQSL");
+   DeleteStateGV(gStateKey+"_EQCLOSE");
+   GlobalVariablesFlush();
+}
+void EnsureStateSchema()
+{
+   if(gTesterMode) return;
+   string key=gStateKey+"_SCHEMA";
+   const double schema=2.0;
+   if(!GlobalVariableCheck(key) || GlobalVariableGet(key)!=schema)
+   {
+      ClearBasketPersistentState();
+      GlobalVariableSet(key,schema);
+      GlobalVariablesFlush();
+      Print("Basket Commander PRO MT5: legacy basket state cleared for safe v1.00 schema.");
+   }
+}
+void SaveStatsPreference()
+{
+   if(gTesterMode || gStateKey=="") return;
+   GlobalVariableSet(gStateKey+"_UI_STATS",gStatsExpanded?1.0:0.0);
+   GlobalVariablesFlush();
+}
+
 void SavePersistentSettings()
 {
    if(gTesterMode)
@@ -869,7 +915,7 @@ bool CreatePanel()
    const int x = InpPanelX;
    const int y = InpPanelY;
    const int w = 750;
-   const int h = 620;
+   int h = gStatsExpanded ? 620 : 420;
 
    if(!ObjectCreate(0, ObjName("BG"), OBJ_RECTANGLE_LABEL, 0, 0, 0))
       return false;
@@ -886,7 +932,9 @@ bool CreatePanel()
    ObjectSetInteger(0, ObjName("BG"), OBJPROP_SELECTABLE, false);
    ObjectSetInteger(0, ObjName("BG"), OBJPROP_HIDDEN, true);
 
-   CreateLabel(ObjName("TITLE"),    "Basket Commander PRO MT5 v1.00",     x + 12, y + 10, 416, 20, clrBlack, 11);
+   CreateLabel(ObjName("TITLE"),    "Basket Commander PRO MT5 v1.00",     x + 12, y + 10, 310, 20, clrBlack, 11);
+   CreateButton(ObjName("BTN_STATS"), gStatsExpanded ? "HIDE STATS" : "SHOW STATS",
+                x + 330, y + 7, 98, 26, clrDimGray, clrWhite);
    CreateLabel(ObjName("LBL_POS"),  "Basket TP (account CCY; 0 = off)",      x + 12, y + 45, 260, 18, clrBlack);
    CreateLabel(ObjName("LBL_NEG"),  "Basket SL (-loss / +profit; 0 = off)", x + 12, y + 75, 260, 18, clrBlack);
    CreateLabel(ObjName("LBL_TRAIL_TRIGGER"), "Trail trigger (CCY; 0 = off)", x + 12, y + 105,260, 18, clrBlack);
@@ -1135,6 +1183,8 @@ void UpdatePanelStatus()
 {
    if(gPanelCreated)
    {
+      ObjectSetInteger(0,ObjName("BG"),OBJPROP_YSIZE,gStatsExpanded?620:420);
+      ObjectSetString(0,ObjName("BTN_STATS"),OBJPROP_TEXT,gStatsExpanded?"HIDE STATS":"SHOW STATS");
       string ccy=AccountInfoString(ACCOUNT_CURRENCY);
       ObjectSetString(0,ObjName("EQ_BALANCE"),OBJPROP_TEXT,"Balance: "+DoubleToString(AccountInfoDouble(ACCOUNT_BALANCE),2)+" "+ccy);
       ObjectSetString(0,ObjName("EQ_CURRENT"),OBJPROP_TEXT,"Equity: "+DoubleToString(AccountInfoDouble(ACCOUNT_EQUITY),2)+" "+ccy);
@@ -1276,6 +1326,15 @@ void UpdatePanelStatus()
       "Realized " + FormatSignedUSD(gLedger[gScope].realized) + " | Floating " + FormatSignedUSD(CurrentSymbolFloatingProfit()));
    ObjectSetString(0, ObjName("LEDGER_LAST"), OBJPROP_TEXT,
       (gLedger[gScope].ready ? "History OK | Last cycle " : "HISTORY NOT READY - exits paused | Last ") + FormatSignedUSD(gLedger[gScope].lastResult));
+
+   if(!gStatsExpanded)
+   {
+      ObjectSetString(0,ObjName("SCOPE"),OBJPROP_TEXT,"");
+      for(int i=1;i<=15;i++) ObjectSetString(0,ObjName("STATUS"+IntegerToString(i)),OBJPROP_TEXT,"");
+      ObjectSetString(0,ObjName("STATUS_HALF"),OBJPROP_TEXT,"");
+      ObjectSetString(0,ObjName("LEDGER"),OBJPROP_TEXT,"");
+      ObjectSetString(0,ObjName("LEDGER_LAST"),OBJPROP_TEXT,"");
+   }
    ChartRedraw(0);
 }
 //+------------------------------------------------------------------+
@@ -2040,6 +2099,8 @@ int OnInit()
       return INIT_PARAMETERS_INCORRECT;
    }
    gStateKey = BuildStateKey();
+   EnsureStateSchema();
+   gStatsExpanded=!GlobalVariableCheck(gStateKey+"_UI_STATS") || GlobalVariableGet(gStateKey+"_UI_STATS")!=0.0;
    if(!InitAccountEquity()) return INIT_PARAMETERS_INCORRECT;
    gManageWholeBasket = (!gTesterMode && GlobalVariableCheck(gStateKey + "_MANAGE_WHOLE") &&
                          GlobalVariableGet(gStateKey + "_MANAGE_WHOLE") != 0.0);
@@ -2077,11 +2138,20 @@ return INIT_SUCCEEDED;
 void OnDeinit(const int reason)
 {
    EventKillTimer();
-if(gStateKey != "")
+   if(gStateKey != "")
    {
-      ReadPanelValues(false);
-      CaptureScope();
-      SaveAllScopes();
+      SaveStatsPreference();
+      if(reason==REASON_REMOVE)
+      {
+         ClearBasketPersistentState();
+         Print("Basket Commander PRO MT5: manual removal detected; basket targets/protection state cleared.");
+      }
+      else
+      {
+         ReadPanelValues(false);
+         CaptureScope();
+         SaveAllScopes();
+      }
    }
    if(gPanelCreated) DeletePanel();
    RestoreTradeHistoryObjectLayer();
@@ -2127,6 +2197,15 @@ void OnChartEvent(const int id,
 
    if(!gPanelCreated)
       return;
+
+   if(id==CHARTEVENT_OBJECT_CLICK && sparam==ObjName("BTN_STATS"))
+   {
+      ObjectSetInteger(0,sparam,OBJPROP_STATE,false);
+      gStatsExpanded=!gStatsExpanded;
+      SaveStatsPreference();
+      UpdatePanelStatus();
+      return;
+   }
 
    if(id == CHARTEVENT_OBJECT_ENDEDIT)
    {
