@@ -904,8 +904,8 @@ bool CreatePanel()
    CreateButton(ObjName("BTN_HALF_BE"), "CLOSE 50% + BE", x + 220, y + 168, 208, 36, clrSteelBlue, clrWhite);
    CreateButton(ObjName("BTN_CLOSE"), "CLOSE BASKET", x + 220, y + 211, 208, 36, clrRed, clrWhite);
    CreateButton(ObjName("BTN_MODE"), "MODE: COMBINED", x + 12, y + 254, 200, 36, clrDimGray, clrWhite);
-   CreateButton(ObjName("BTN_BUY"), "BUY", x + 220, y + 254, 100, 36, clrDimGray, clrWhite);
-   CreateButton(ObjName("BTN_SELL"), "SELL", x + 328, y + 254, 100, 36, clrDimGray, clrWhite);
+   CreateButton(ObjName("BTN_BUY"), "MANAGE BUY", x + 220, y + 254, 100, 36, clrDimGray, clrWhite);
+   CreateButton(ObjName("BTN_SELL"), "MANAGE SELL", x + 328, y + 254, 100, 36, clrDimGray, clrWhite);
    CreateLabel(ObjName("SCOPE"), "", x + 12, y + 294, 416, 16, clrBlack, 9);
    CreateLabel(ObjName("LEDGER"), "", x + 12, y + 578, 416, 16, clrBlack, 9);
    CreateLabel(ObjName("LEDGER_LAST"), "", x + 12, y + 596, 416, 16, clrBlack, 9);
@@ -1023,6 +1023,8 @@ void GetCurrentSymbolStats(int &buyCount,
                            double &sellLots,
                            double &buyAverageOpen,
                            double &sellAverageOpen,
+                           double &buySidePL,
+                           double &sellSidePL,
                            double &totalSwap,
                            double &bestPositionPL,
                            double &worstPositionPL,
@@ -1034,6 +1036,8 @@ void GetCurrentSymbolStats(int &buyCount,
    sellLots = 0.0;
    buyAverageOpen = 0.0;
    sellAverageOpen = 0.0;
+   buySidePL = 0.0;
+   sellSidePL = 0.0;
    totalSwap = 0.0;
    bestPositionPL = 0.0;
    worstPositionPL = 0.0;
@@ -1083,12 +1087,14 @@ void GetCurrentSymbolStats(int &buyCount,
          buyCount++;
          buyLots += volume;
          buyPriceVolume += openPrice * volume;
+         buySidePL += positionPL + PositionGetDouble(POSITION_SWAP);
       }
       else if(posType == POSITION_TYPE_SELL)
       {
          sellCount++;
          sellLots += volume;
          sellPriceVolume += openPrice * volume;
+         sellSidePL += positionPL + PositionGetDouble(POSITION_SWAP);
       }
    }
 
@@ -1150,6 +1156,8 @@ void UpdatePanelStatus()
    double sellLots = 0.0;
    double buyAverageOpen = 0.0;
    double sellAverageOpen = 0.0;
+   double buySidePL = 0.0;
+   double sellSidePL = 0.0;
    double totalSwap = 0.0;
    double bestPositionPL = 0.0;
    double worstPositionPL = 0.0;
@@ -1159,8 +1167,8 @@ void UpdatePanelStatus()
    int    todayOpenedTrades = 0;
 
    GetCurrentSymbolStats(buyCount, sellCount, buyLots, sellLots,
-                         buyAverageOpen, sellAverageOpen, totalSwap,
-                         bestPositionPL, worstPositionPL, oldestPositionTime);
+                         buyAverageOpen, sellAverageOpen, buySidePL, sellSidePL,
+                         totalSwap, bestPositionPL, worstPositionPL, oldestPositionTime);
    GetTodaySymbolStats(todayRealizedPL, todayOpenedLots, todayOpenedTrades);
 
    int count = buyCount + sellCount;
@@ -1184,11 +1192,12 @@ void UpdatePanelStatus()
 
    string s1 = ScopeName() + " " + _Symbol + " | Positions: " + IntegerToString(count) +
                " | Total P/L: " + FormatSignedUSD(basket) + " " + accountCurrency;
-   string s2 = "Buy trades: " + IntegerToString(buyCount) +
-               " | Buy lots: " + FormatVolume(buyLots);
-   string s3 = "Sell trades: " + IntegerToString(sellCount) +
-               " | Sell lots: " + FormatVolume(sellLots);
-   string s4 = "Lot diff (Buy - Sell): " + FormatVolume(netLotDiff);
+   string s2 = "BUY side: " + IntegerToString(buyCount) + " trades | " +
+               FormatVolume(buyLots) + " lots | P/L " + FormatSignedUSD(buySidePL) + " " + accountCurrency;
+   string s3 = "SELL side: " + IntegerToString(sellCount) + " trades | " +
+               FormatVolume(sellLots) + " lots | P/L " + FormatSignedUSD(sellSidePL) + " " + accountCurrency;
+   string s4 = "NET hedge: " + FormatSignedUSD(buySidePL + sellSidePL) + " " + accountCurrency +
+               " | Lot diff " + FormatVolume(netLotDiff);
    string s5 = "Average open: BUY " + buyAverageText + " | SELL " + sellAverageText;
    string s6 = "Market: Bid " + DoubleToString(bid, _Digits) +
                " | Ask " + DoubleToString(ask, _Digits) +
@@ -1253,7 +1262,14 @@ void UpdatePanelStatus()
    ObjectSetInteger(0, ObjName("BTN_SELL"), OBJPROP_BGCOLOR, gScope == 2 ? clrFireBrick : clrDimGray);
    ObjectSetInteger(0, ObjName("BTN_MANAGE_SYMBOL"), OBJPROP_BGCOLOR, gManageWholeBasket ? clrDimGray : clrForestGreen);
    ObjectSetInteger(0, ObjName("BTN_MANAGE_WHOLE"), OBJPROP_BGCOLOR, gManageWholeBasket ? clrFireBrick : clrDimGray);
-   ObjectSetString(0, ObjName("BTN_CLOSE"), OBJPROP_TEXT, gManageWholeBasket ? "CLOSE WHOLE BASKET" : "CLOSE SYMBOL BASKET");
+   string closeText;
+   if(gScope == 1)
+      closeText = gManageWholeBasket ? "CLOSE BUY WHOLE" : "CLOSE BUY BASKET";
+   else if(gScope == 2)
+      closeText = gManageWholeBasket ? "CLOSE SELL WHOLE" : "CLOSE SELL BASKET";
+   else
+      closeText = gManageWholeBasket ? "CLOSE WHOLE BASKET" : "CLOSE SYMBOL BASKET";
+   ObjectSetString(0, ObjName("BTN_CLOSE"), OBJPROP_TEXT, closeText);
    ObjectSetInteger(0, ObjName("BTN_CLOSE"), OBJPROP_FONTSIZE, 9);
    ObjectSetString(0, ObjName("SCOPE"), OBJPROP_TEXT, ScopeName() + " | Magic " + (InpMagicNumber < 0 ? "ALL" : IntegerToString(InpMagicNumber)) + " | Manual: " + ManageModeName());
    ObjectSetString(0, ObjName("LEDGER"), OBJPROP_TEXT,
