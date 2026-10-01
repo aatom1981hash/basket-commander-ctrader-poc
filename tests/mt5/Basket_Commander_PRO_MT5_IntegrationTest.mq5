@@ -2139,7 +2139,7 @@ void IntegrationSelfTest()
    if(gITStep==4)
    {
       ITAssert(ITPendingCount()>0,"pending order visible");
-      gManageWholeBasket=false; ActivateScope(0); CloseAllNow();
+      gManageWholeBasket=false; ActivateScope(0); gLastCloseAttempt[0]=0; CloseAllNow();
       gITStep=5; return;
    }
    if(gITStep==5)
@@ -2157,7 +2157,7 @@ void IntegrationSelfTest()
       gPositiveUSD=0; gNegativeUSD=0; gNegativeProfitLock=false;
       if(pl>=0.01) gPositiveUSD=MathMax(0.005,pl*0.5);
       else gNegativeUSD=MathMax(0.005,(-pl)*0.5);
-      CheckEquityExit();
+      gLastCloseAttempt[0]=0; CheckEquityExit();
       gITStep=7; return;
    }
    if(gITStep==7)
@@ -2173,7 +2173,7 @@ void IntegrationSelfTest()
       if(!gLedger[0].ready){ gHistoryDirty=true; return; }
       double pl=CurrentSymbolBasketProfit();
       gBreakevenMode=(pl<=0 ? BREAKEVEN_PROTECT : BREAKEVEN_RECOVERY);
-      CheckEquityExit();
+      gLastCloseAttempt[0]=0; CheckEquityExit();
       gITStep=9; return;
    }
    if(gITStep==9)
@@ -2190,7 +2190,7 @@ void IntegrationSelfTest()
       double pl=CurrentSymbolBasketProfit();
       gTrailTriggerUSD=0.01; gTrailDistanceUSD=0.50;
       gProfitTrailArmed=true; gProfitTrailPeakUSD=pl+1.0;
-      CheckEquityExit();
+      gLastCloseAttempt[0]=0; CheckEquityExit();
       gITStep=11; return;
    }
    if(gITStep==11)
@@ -2204,7 +2204,7 @@ void IntegrationSelfTest()
    if(gITStep==12)
    {
       gSplit=true; ActivateScope(1); RefreshAccounting(true);
-      CloseAllSymbolPositions(_Symbol);
+      gLastCloseAttempt[1]=0; CloseAllSymbolPositions(_Symbol);
       gITStep=13; return;
    }
    if(gITStep==13)
@@ -2213,7 +2213,7 @@ void IntegrationSelfTest()
       ITAssert(CurrentSymbolPositionCount()==0,"BUY scope close");
       ActivateScope(2);
       ITAssert(CurrentSymbolPositionCount()==1,"SELL remains after BUY scope close");
-      CloseAllSymbolPositions(_Symbol);
+      gLastCloseAttempt[2]=0; CloseAllSymbolPositions(_Symbol);
       gSplit=false; ActivateScope(0);
       gITStep=14; return;
    }
