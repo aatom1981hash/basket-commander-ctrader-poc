@@ -449,8 +449,8 @@ void CreatePanel()
    SetButton(Obj("BE"),"BREAKEVEN: OFF",x+12,y+211,200,36,clrDimGray);
    SetButton(Obj("CLOSE"),"CLOSE SYMBOL BASKET",x+220,y+211,208,36,clrRed);
    SetButton(Obj("MODE"),g_split?"MODE: SPLIT":"MODE: COMBINED",x+12,y+254,200,36,clrDimGray);
-   SetButton(Obj("BUY"),"BUY",x+220,y+254,100,36,clrDimGray);
-   SetButton(Obj("SELL"),"SELL",x+328,y+254,100,36,clrDimGray);
+   SetButton(Obj("BUY"),"MANAGE BUY",x+220,y+254,100,36,clrDimGray);
+   SetButton(Obj("SELL"),"MANAGE SELL",x+328,y+254,100,36,clrDimGray);
 
    SetText(Obj("EQ_TITLE"),"ACCOUNT EQUITY - ALL TRADES",x+452,y+12,286,10,clrBlack);
    SetText(Obj("BAL"),"Balance: "+DoubleToString(AccountBalance(),2)+" "+AccountCurrency(),x+452,y+45,286,10,clrBlack);
@@ -570,11 +570,11 @@ string PositionAgeText(datetime oldest)
    return "<1m";
 }
 void CurrentStats(int &buyCount,int &sellCount,double &buyLots,double &sellLots,
-                  double &buyAvg,double &sellAvg,double &swap,double &best,double &worst,
-                  datetime &oldest)
+                  double &buyAvg,double &sellAvg,double &buyPL,double &sellPL,
+                  double &swap,double &best,double &worst,datetime &oldest)
 {
    buyCount=0; sellCount=0; buyLots=0; sellLots=0; buyAvg=0; sellAvg=0;
-   swap=0; best=0; worst=0; oldest=0;
+   buyPL=0; sellPL=0; swap=0; best=0; worst=0; oldest=0;
    bool have=false;
    double buyPx=0,sellPx=0;
    for(int i=OrdersTotal()-1;i>=0;i--)
@@ -583,8 +583,14 @@ void CurrentStats(int &buyCount,int &sellCount,double &buyLots,double &sellLots,
       if(!IsMarketType(OrderType()) || OrderSymbol()!=Symbol() || !MagicMatches() || !DirectionMatches(OrderType(),g_scope)) continue;
       double lots=OrderLots();
       double pl=OrderProfit()+OrderSwap()+OrderCommission();
-      if(OrderType()==OP_BUY){ buyCount++; buyLots+=lots; buyPx+=OrderOpenPrice()*lots; }
-      else { sellCount++; sellLots+=lots; sellPx+=OrderOpenPrice()*lots; }
+      if(OrderType()==OP_BUY)
+      {
+         buyCount++; buyLots+=lots; buyPx+=OrderOpenPrice()*lots; buyPL+=pl;
+      }
+      else
+      {
+         sellCount++; sellLots+=lots; sellPx+=OrderOpenPrice()*lots; sellPL+=pl;
+      }
       swap+=OrderSwap();
       if(!have){ best=pl; worst=pl; have=true; }
       else { if(pl>best) best=pl; if(pl<worst) worst=pl; }
@@ -621,8 +627,8 @@ void UpdatePanel()
                    g_accountClosing ? "CLOSING ALL / retry until flat" :
                    ((g_accountTP>0 || g_accountSL>0) ? "Account limits: ACTIVE" : "Account limits: OFF"));
 
-   int bc,sc; double bl,sl,bavg,savg,sw,best,worst; datetime oldest;
-   CurrentStats(bc,sc,bl,sl,bavg,savg,sw,best,worst,oldest);
+   int bc,sc; double bl,sl,bavg,savg,buyPL,sellPL,sw,best,worst; datetime oldest;
+   CurrentStats(bc,sc,bl,sl,bavg,savg,buyPL,sellPL,sw,best,worst,oldest);
    double todayPL,todayLots; int todayTrades;
    TodayStats(todayPL,todayLots,todayTrades);
 
@@ -661,9 +667,12 @@ void UpdatePanel()
    ObjectSetString(0,Obj("STATUS1"),OBJPROP_TEXT,
                    ScopeNameText()+" "+Symbol()+" | Positions: "+IntegerToString(count)+
                    " | Total P/L: "+FormatSigned(basket)+" "+AccountCurrency());
-   ObjectSetString(0,Obj("STATUS2"),OBJPROP_TEXT,"Buy trades: "+IntegerToString(bc)+" | Buy lots: "+DoubleToString(bl,2));
-   ObjectSetString(0,Obj("STATUS3"),OBJPROP_TEXT,"Sell trades: "+IntegerToString(sc)+" | Sell lots: "+DoubleToString(sl,2));
-   ObjectSetString(0,Obj("STATUS4"),OBJPROP_TEXT,"Lot diff (Buy - Sell): "+DoubleToString(bl-sl,2));
+   ObjectSetString(0,Obj("STATUS2"),OBJPROP_TEXT,
+                   "BUY side: "+IntegerToString(bc)+" trades | "+DoubleToString(bl,2)+" lots | P/L "+FormatSigned(buyPL)+" "+AccountCurrency());
+   ObjectSetString(0,Obj("STATUS3"),OBJPROP_TEXT,
+                   "SELL side: "+IntegerToString(sc)+" trades | "+DoubleToString(sl,2)+" lots | P/L "+FormatSigned(sellPL)+" "+AccountCurrency());
+   ObjectSetString(0,Obj("STATUS4"),OBJPROP_TEXT,
+                   "NET hedge: "+FormatSigned(buyPL+sellPL)+" "+AccountCurrency()+" | Lot diff "+FormatSigned(bl-sl));
    ObjectSetString(0,Obj("STATUS5"),OBJPROP_TEXT,"Average open: BUY "+buyAvg+" | SELL "+sellAvg);
    ObjectSetString(0,Obj("STATUS6"),OBJPROP_TEXT,
                    "Market: Bid "+DoubleToString(bid,Digits)+" | Ask "+DoubleToString(ask,Digits)+
@@ -691,7 +700,14 @@ void UpdatePanel()
    ObjectSetInteger(0,Obj("SELL"),OBJPROP_BGCOLOR,g_scope==BC_SCOPE_SELL?clrFireBrick:clrDimGray);
    ObjectSetInteger(0,Obj("MS"),OBJPROP_BGCOLOR,g_manageWhole?clrDimGray:clrForestGreen);
    ObjectSetInteger(0,Obj("MW"),OBJPROP_BGCOLOR,g_manageWhole?clrFireBrick:clrDimGray);
-   ObjectSetString(0,Obj("CLOSE"),OBJPROP_TEXT,g_manageWhole?"CLOSE WHOLE BASKET":"CLOSE SYMBOL BASKET");
+   string closeText;
+   if(g_scope==BC_SCOPE_BUY)
+      closeText=g_manageWhole ? "CLOSE BUY WHOLE" : "CLOSE BUY BASKET";
+   else if(g_scope==BC_SCOPE_SELL)
+      closeText=g_manageWhole ? "CLOSE SELL WHOLE" : "CLOSE SELL BASKET";
+   else
+      closeText=g_manageWhole ? "CLOSE WHOLE BASKET" : "CLOSE SYMBOL BASKET";
+   ObjectSetString(0,Obj("CLOSE"),OBJPROP_TEXT,closeText);
    ObjectSetString(0,Obj("BE"),OBJPROP_TEXT,"BREAKEVEN: "+BEText());
    ObjectSetInteger(0,Obj("BE"),OBJPROP_BGCOLOR,
                     g_state[g_scope].be==BC_BE_OFF?clrDimGray:
