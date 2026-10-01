@@ -548,7 +548,7 @@ void TestFinish()
 void IntegrationSelfTest()
 {
    if(!InpIntegrationSelfTest || g_testStep==999) return;
-   if((!IsDemo() && !IsTesting()) || AccountNumber()!=InpIntegrationAccount)
+   if(!IsTesting() && (!IsDemo() || AccountNumber()!=InpIntegrationAccount))
    {
       TestLog("ABORT | wrong account or not demo");
       g_testStep=999; return;
