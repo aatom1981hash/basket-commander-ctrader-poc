@@ -48,6 +48,7 @@ int  g_scope = BC_SCOPE_BOTH;
 bool g_split = false;
 bool g_manageWhole = false;
 bool g_panel = false;
+bool g_statsExpanded = true;
 bool g_accountClosing = false;
 double g_accountTP = 0.0;
 double g_accountSL = 0.0;
@@ -181,6 +182,46 @@ void SaveGlobal()
    GlobalVariableSet(g_equityKey+"_EQSL",g_accountSL);
    GlobalVariableSet(g_equityKey+"_EQCLOSING",g_accountClosing?1.0:0.0);
    for(int s=0;s<3;s++) SaveScope(s);
+   GlobalVariablesFlush();
+}
+
+void DeleteGV(string key)
+{
+   if(GlobalVariableCheck(key)) GlobalVariableDel(key);
+}
+void ClearBasketPersistentState()
+{
+   for(int scope=0;scope<3;scope++)
+   {
+      DeleteGV(Key(scope,"TP"));
+      DeleteGV(Key(scope,"SL"));
+      DeleteGV(Key(scope,"TRIG"));
+      DeleteGV(Key(scope,"DIST"));
+      DeleteGV(Key(scope,"PEAK"));
+      DeleteGV(Key(scope,"BE"));
+      DeleteGV(Key(scope,"TRAIL"));
+      DeleteGV(Key(scope,"START"));
+   }
+   DeleteGV(g_stateKey+"_MODE");
+   DeleteGV(g_stateKey+"_WHOLE");
+   GlobalVariablesFlush();
+}
+void EnsureStateSchema()
+{
+   string key=g_stateKey+"_SCHEMA";
+   const double schema=2.0;
+   if(!GlobalVariableCheck(key) || GlobalVariableGet(key)!=schema)
+   {
+      ClearBasketPersistentState();
+      GlobalVariableSet(key,schema);
+      GlobalVariablesFlush();
+      Print("Basket Commander PRO MT4: legacy basket state cleared for safe v1.00 schema.");
+   }
+}
+void SaveStatsPreference()
+{
+   if(g_stateKey=="") return;
+   GlobalVariableSet(g_stateKey+"_UI_STATS",g_statsExpanded?1.0:0.0);
    GlobalVariablesFlush();
 }
 
@@ -432,13 +473,14 @@ void CreatePanel()
    ObjectSetInteger(0,bg,OBJPROP_XDISTANCE,x);
    ObjectSetInteger(0,bg,OBJPROP_YDISTANCE,y);
    ObjectSetInteger(0,bg,OBJPROP_XSIZE,750);
-   ObjectSetInteger(0,bg,OBJPROP_YSIZE,620);
+   ObjectSetInteger(0,bg,OBJPROP_YSIZE,g_statsExpanded?620:420);
    ObjectSetInteger(0,bg,OBJPROP_BGCOLOR,clrGainsboro);
    ObjectSetInteger(0,bg,OBJPROP_BORDER_COLOR,clrGray);
    ObjectSetInteger(0,bg,OBJPROP_BACK,false);
    ObjectSetInteger(0,bg,OBJPROP_HIDDEN,true);
 
-   SetText(Obj("TITLE"),"Basket Commander PRO MT4 v1.00",x+12,y+10,410,11,clrBlack);
+   SetText(Obj("TITLE"),"Basket Commander PRO MT4 v1.00",x+12,y+10,310,11,clrBlack);
+   SetButton(Obj("STATS"),g_statsExpanded?"HIDE STATS":"SHOW STATS",x+330,y+7,98,26,clrDimGray);
    SetText(Obj("TP_L"),"Basket TP",x+12,y+45); SetEdit(Obj("TP"),DoubleToString(g_state[g_scope].tp,2),x+135,y+40,110,22);
    SetText(Obj("SL_L"),"Basket SL",x+12,y+75); SetEdit(Obj("SL"),DoubleToString(g_state[g_scope].sl,2),x+135,y+70,110,22);
    SetText(Obj("TR_L"),"Trail trigger",x+12,y+105); SetEdit(Obj("TR"),DoubleToString(g_state[g_scope].trigger,2),x+135,y+100,110,22);
@@ -621,6 +663,9 @@ void UpdatePanel()
 {
    if(!g_panel) return;
 
+   ObjectSetInteger(0,Obj("BG"),OBJPROP_YSIZE,g_statsExpanded?620:420);
+   ObjectSetString(0,Obj("STATS"),OBJPROP_TEXT,g_statsExpanded?"HIDE STATS":"SHOW STATS");
+
    ObjectSetString(0,Obj("BAL"),OBJPROP_TEXT,"Balance: "+DoubleToString(AccountBalance(),2)+" "+AccountCurrency());
    ObjectSetString(0,Obj("EQ"),OBJPROP_TEXT,"Equity: "+DoubleToString(AccountEquity(),2)+" "+AccountCurrency());
    ObjectSetString(0,Obj("EQSTATUS"),OBJPROP_TEXT,
@@ -695,6 +740,15 @@ void UpdatePanel()
    ObjectSetString(0,Obj("LEDGER"),OBJPROP_TEXT,"Realized "+FormatSigned(realized)+" | Floating "+FormatSigned(floating));
    ObjectSetString(0,Obj("LEDGER_LAST"),OBJPROP_TEXT,"Cycle total "+FormatSigned(basket)+" | Start "+(g_state[g_scope].cycleStart>0?TimeToStr(g_state[g_scope].cycleStart,TIME_DATE|TIME_MINUTES):"-"));
 
+   if(!g_statsExpanded)
+   {
+      ObjectSetString(0,Obj("SCOPE"),OBJPROP_TEXT,"");
+      for(int i=1;i<=15;i++) ObjectSetString(0,Obj("STATUS"+IntegerToString(i)),OBJPROP_TEXT,"");
+      ObjectSetString(0,Obj("STATUS_HALF"),OBJPROP_TEXT,"");
+      ObjectSetString(0,Obj("LEDGER"),OBJPROP_TEXT,"");
+      ObjectSetString(0,Obj("LEDGER_LAST"),OBJPROP_TEXT,"");
+   }
+
    ObjectSetString(0,Obj("MODE"),OBJPROP_TEXT,g_split?"MODE: SPLIT":"MODE: COMBINED");
    ObjectSetInteger(0,Obj("BUY"),OBJPROP_BGCOLOR,g_scope==BC_SCOPE_BUY?clrForestGreen:clrDimGray);
    ObjectSetInteger(0,Obj("SELL"),OBJPROP_BGCOLOR,g_scope==BC_SCOPE_SELL?clrFireBrick:clrDimGray);
@@ -715,7 +769,7 @@ void UpdatePanel()
 
    ReleaseButton(Obj("HALF")); ReleaseButton(Obj("HALFBE")); ReleaseButton(Obj("BE"));
    ReleaseButton(Obj("CLOSE")); ReleaseButton(Obj("MODE")); ReleaseButton(Obj("BUY"));
-   ReleaseButton(Obj("SELL")); ReleaseButton(Obj("MS")); ReleaseButton(Obj("MW"));
+   ReleaseButton(Obj("SELL")); ReleaseButton(Obj("MS")); ReleaseButton(Obj("MW")); ReleaseButton(Obj("STATS"));
    ChartRedraw(0);
 }
 
@@ -728,6 +782,8 @@ int OnInit()
 
    g_stateKey="BCPRO4_"+IntegerToString(AccountNumber())+"_"+AccountServer()+"_"+Symbol()+"_"+IntegerToString(InpMagicNumber);
    g_equityKey="BCPRO4_EQ_"+IntegerToString(AccountNumber())+"_"+AccountServer();
+   EnsureStateSchema();
+   g_statsExpanded=!GlobalVariableCheck(g_stateKey+"_UI_STATS") || GlobalVariableGet(g_stateKey+"_UI_STATS")!=0.0;
    g_accountTP=GlobalVariableCheck(g_equityKey+"_EQTP") ? GlobalVariableGet(g_equityKey+"_EQTP") : InpAccountEquityTP;
    g_accountSL=GlobalVariableCheck(g_equityKey+"_EQSL") ? GlobalVariableGet(g_equityKey+"_EQSL") : InpAccountEquitySL;
    g_accountClosing=GlobalVariableCheck(g_equityKey+"_EQCLOSING") && GlobalVariableGet(g_equityKey+"_EQCLOSING")!=0;
@@ -749,7 +805,14 @@ int OnInit()
 void OnDeinit(const int reason)
 {
    EventKillTimer();
-   SaveGlobal();
+   SaveStatsPreference();
+   if(reason==REASON_REMOVE)
+   {
+      ClearBasketPersistentState();
+      Print("Basket Commander PRO MT4: manual removal detected; basket targets/protection state cleared.");
+   }
+   else
+      SaveGlobal();
    DeletePanel();
 }
 void OnTick()
@@ -781,6 +844,14 @@ void OnChartEvent(const int id,const long &lparam,const double &dparam,const str
 
    ReleaseButton(sparam);
    ChartRedraw(0);
+
+   if(sparam==Obj("STATS"))
+   {
+      g_statsExpanded=!g_statsExpanded;
+      SaveStatsPreference();
+      UpdatePanel();
+      return;
+   }
 
    if(sparam==Obj("MS")) { g_manageWhole=false; SaveGlobal(); UpdatePanel(); return; }
    if(sparam==Obj("MW")) { g_manageWhole=true; SaveGlobal(); UpdatePanel(); return; }
