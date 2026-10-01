@@ -204,6 +204,9 @@ void ClearBasketPersistentState()
    }
    DeleteGV(g_stateKey+"_MODE");
    DeleteGV(g_stateKey+"_WHOLE");
+   DeleteGV(g_equityKey+"_EQTP");
+   DeleteGV(g_equityKey+"_EQSL");
+   DeleteGV(g_equityKey+"_EQCLOSING");
    GlobalVariablesFlush();
 }
 void EnsureStateSchema()
