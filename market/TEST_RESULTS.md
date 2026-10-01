@@ -97,3 +97,11 @@ Additional MT4 parity fixes completed after the first port:
 - MQL5 automatic Market validation
 - Seller-side product submission
 - Post-submission fixes if MetaQuotes validator reports platform-specific edge cases
+
+
+## Release SHA-256
+
+- Basket_Commander_PRO_MT5_v1.00.mq5 — 329aa5e2e340a8e7cb013161b6c59ac14246c679ae257f9a8f5c8c8c33cd6a44
+- Basket_Commander_PRO_MT5_v1.00.ex5 — f56f43596a327103a673f0b0c924a57583ff52a3783cc1609eaef3f77eee16b6
+- Basket_Commander_PRO_MT4_v1.00.mq4 — 786f65866f2e5b58a963835c1d1eb69b7464e5efc617841776552270c1655489
+- Basket_Commander_PRO_MT4_v1.00.ex4 — 7261e9149802e2f294e5e46b18d798515c6bc50aa1fbfb86dd638d6666a527de
