@@ -27,16 +27,16 @@ input double                  InpSideDefaultSL = 0.0;
 input ENUM_BASE_CORNER        InpPanelCorner            = CORNER_LEFT_UPPER;
 input int                     InpPanelX                 = 1;
 input int                     InpPanelY                 = 80;
-input double                  InpDefaultPosUSD          = 5000.0; // Basket TP (account CCY; 0 = off)
-input double                  InpDefaultNegUSD          = 10000.0; // Basket SL magnitude ($, 0 = off)
+input double                  InpDefaultPosUSD          = 0.0; // Basket TP (account CCY; 0 = off)
+input double                  InpDefaultNegUSD          = 0.0; // Basket SL magnitude (account CCY; 0 = off)
 input bool                    InpDefaultNegProfitLock   = false;  // false: -loss limit; true: +protected-profit floor
 input double                  InpDefaultTrailTriggerUSD = 0.0;   // Trail trigger (CCY; 0 = off)
 input double                  InpDefaultTrailDistanceUSD = 0.0;  // Trail distance (CCY; 0 = off)
 input int                     InpSlippagePoints         = 20;
 
 input bool                    InpUseTesterInputs        = true;
-input double                  InpTesterPosUSD           = 5000.0;
-input double                  InpTesterNegUSD           = 10000.0;
+input double                  InpTesterPosUSD           = 0.0;
+input double                  InpTesterNegUSD           = 0.0;
 input bool                    InpTesterNegProfitLock    = false;
 input double                  InpTesterTrailTriggerUSD  = 0.0;
 input double                  InpTesterTrailDistanceUSD = 0.0;
@@ -44,8 +44,8 @@ input double                  InpTesterTrailDistanceUSD = 0.0;
 const string PREFIX = "BCPRO100_";
 const double BREAKEVEN_LEVEL_USD = 0.0;
 
-double gPositiveUSD    = 5000.0;
-double gNegativeUSD    = 10000.0;
+double gPositiveUSD    = 0.0;
+double gNegativeUSD    = 0.0;
 bool   gNegativeProfitLock = false;
 bool   gBasketSLArmed = false;
 double gTrailTriggerUSD = 0.0;
