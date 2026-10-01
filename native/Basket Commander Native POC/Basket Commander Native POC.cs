@@ -14,7 +14,10 @@ namespace cAlgo.Plugins
         private TextBlock? _scopeText;
         private TextBlock? _managedText;
         private TextBlock? _trailText;
+        private TextBlock? _targetsText;
         private TextBlock? _statusText;
+        private StackPanel? _proHost;
+        private StackPanel? _proPanel;
         private TextBox? _tpBox;
         private TextBox? _slBox;
         private TextBox? _tpPctBox;
@@ -24,6 +27,7 @@ namespace cAlgo.Plugins
         private CheckBox? _pendingCheck;
 
         private bool _manageWhole = true;
+        private bool _proMode = true;
         private string _managedSymbol = "";
         private bool _includePending;
         private double _tpCcy;
@@ -36,6 +40,8 @@ namespace cAlgo.Plugins
         private double _trailPeak;
         private string _trailSignature = "";
         private DateTime _lastTrailPersistUtc = DateTime.MinValue;
+        private DateTime _autoCooldownUntilUtc = DateTime.MinValue;
+        private const int AutoCooldownSeconds = 5;
 
         protected override void OnStart()
         {
@@ -71,17 +77,28 @@ namespace cAlgo.Plugins
             if (_root == null)
                 return;
 
-            _root.AddChild(new TextBlock { Text = "Basket Commander Native v0.4", FontSize = 16, Margin = 5 });
+            _root.AddChild(new TextBlock { Text = "Basket Commander Native v0.5", FontSize = 16, Margin = 5 });
             _accountText = new TextBlock { FontSize = 14, Margin = 5 };
             _scopeText = new TextBlock { FontSize = 13, Margin = 5 };
             _managedText = new TextBlock { Margin = 5 };
             _trailText = new TextBlock { Margin = 5 };
+            _targetsText = new TextBlock { Margin = 5 };
             _statusText = new TextBlock { Margin = 5 };
             _root.AddChild(_accountText);
             _root.AddChild(_scopeText);
             _root.AddChild(_managedText);
             _root.AddChild(_trailText);
+            _root.AddChild(_targetsText);
             _root.AddChild(_statusText);
+
+            var viewRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = 3 };
+            var simpleButton = new Button { Text = "SIMPLE", Width = 95, Margin = 3 };
+            simpleButton.Click += _ => SetProMode(false);
+            var proButton = new Button { Text = "PRO", Width = 95, Margin = 3 };
+            proButton.Click += _ => SetProMode(true);
+            viewRow.AddChild(simpleButton);
+            viewRow.AddChild(proButton);
+            _root.AddChild(viewRow);
 
             var modeRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = 3 };
             var symbolModeButton = new Button { Text = "MANAGE SYMBOL BASKET", Width = 190, Margin = 3 };
@@ -92,6 +109,10 @@ namespace cAlgo.Plugins
             modeRow.AddChild(wholeButton);
             _root.AddChild(modeRow);
 
+            _proHost = new StackPanel { Orientation = Orientation.Vertical, Margin = 0 };
+            _proPanel = new StackPanel { Orientation = Orientation.Vertical, Margin = 0 };
+            _root.AddChild(_proHost);
+
             var settingsRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = 3 };
             _tpBox = MakeBox(_tpCcy);
             _slBox = MakeBox(_slCcy);
@@ -101,14 +122,14 @@ namespace cAlgo.Plugins
             AddLabeled(settingsRow, "SL CCY", _slBox);
             AddLabeled(settingsRow, "Trail trigger", _trailTriggerBox);
             AddLabeled(settingsRow, "Trail distance", _trailDistanceBox);
-            _root.AddChild(settingsRow);
+            _proPanel.AddChild(settingsRow);
 
             var percentRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = 3 };
             _tpPctBox = MakeBox(_tpPct);
             _slPctBox = MakeBox(_slPct);
             AddLabeled(percentRow, "TP % balance", _tpPctBox);
             AddLabeled(percentRow, "SL % balance", _slPctBox);
-            _root.AddChild(percentRow);
+            _proPanel.AddChild(percentRow);
 
             var settingsActions = new StackPanel { Orientation = Orientation.Horizontal, Margin = 3 };
             var applyButton = new Button { Text = "APPLY SETTINGS", Width = 150, Margin = 3 };
@@ -119,9 +140,12 @@ namespace cAlgo.Plugins
                 _includePending = args.CheckBox.IsChecked == true;
                 SaveSettings();
             };
+            var resetButton = new Button { Text = "RESET MANAGEMENT", Width = 155, Margin = 3 };
+            resetButton.Click += _ => ResetManagementSettings();
             settingsActions.AddChild(applyButton);
+            settingsActions.AddChild(resetButton);
             settingsActions.AddChild(_pendingCheck);
-            _root.AddChild(settingsActions);
+            _proPanel.AddChild(settingsActions);
 
             var actionRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = 3 };
             var closeManaged = new Button { Text = "CLOSE MANAGED", Width = 135, Margin = 3 };
@@ -143,6 +167,7 @@ namespace cAlgo.Plugins
             closeWhole.Click += _ => CloseWholeBasket();
             emergencyRow.AddChild(closeWhole);
             _root.AddChild(emergencyRow);
+            UpdateProPanelVisibility();
         }
 
         private TextBox MakeBox(double value)
@@ -161,10 +186,76 @@ namespace cAlgo.Plugins
             row.AddChild(box);
         }
 
+        private string TargetState(double value)
+        {
+            return value > 0 ? $"ON {value:0.##}" : "OFF";
+        }
+
+        private void SetProMode(bool proMode)
+        {
+            _proMode = proMode;
+            SaveSettings();
+            UpdateProPanelVisibility();
+            SetStatus(proMode ? "PRO view enabled." : "SIMPLE view enabled.");
+            RefreshUi();
+        }
+
+        private void UpdateProPanelVisibility()
+        {
+            if (_proHost == null || _proPanel == null)
+                return;
+
+            var shown = _proHost.HasChild(_proPanel);
+            if (_proMode && !shown)
+                _proHost.AddChild(_proPanel);
+            else if (!_proMode && shown)
+                _proHost.RemoveChild(_proPanel);
+        }
+
+        private void ResetManagementSettings()
+        {
+            var result = MessageBox.Show(
+                "Reset all Basket Commander management settings?\nThis does not close or modify any trades.",
+                "Basket Commander",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning,
+                MessageBoxResult.No);
+
+            if (result != MessageBoxResult.Yes)
+                return;
+
+            _manageWhole = true;
+            _managedSymbol = "";
+            _includePending = false;
+            _tpCcy = 0;
+            _slCcy = 0;
+            _tpPct = 0;
+            _slPct = 0;
+            _trailTrigger = 0;
+            _trailDistance = 0;
+            _autoCooldownUntilUtc = DateTime.MinValue;
+            ResetTrail();
+            SyncSettingControls();
+            SaveSettings();
+            SetStatus("Management settings reset. No trades were changed.");
+            RefreshUi();
+        }
+
+        private void SyncSettingControls()
+        {
+            if (_tpBox != null) _tpBox.Text = _tpCcy.ToString("0.##", CultureInfo.InvariantCulture);
+            if (_slBox != null) _slBox.Text = _slCcy.ToString("0.##", CultureInfo.InvariantCulture);
+            if (_tpPctBox != null) _tpPctBox.Text = _tpPct.ToString("0.##", CultureInfo.InvariantCulture);
+            if (_slPctBox != null) _slPctBox.Text = _slPct.ToString("0.##", CultureInfo.InvariantCulture);
+            if (_trailTriggerBox != null) _trailTriggerBox.Text = _trailTrigger.ToString("0.##", CultureInfo.InvariantCulture);
+            if (_trailDistanceBox != null) _trailDistanceBox.Text = _trailDistance.ToString("0.##", CultureInfo.InvariantCulture);
+            if (_pendingCheck != null) _pendingCheck.IsChecked = _includePending;
+        }
+
         private void RefreshUi()
         {
             if (_root == null || _accountText == null || _scopeText == null ||
-                _managedText == null || _trailText == null)
+                _managedText == null || _trailText == null || _targetsText == null)
                 return;
 
             _accountText.Text =
@@ -183,6 +274,14 @@ namespace cAlgo.Plugins
             _trailText.Text = _trailArmed
                 ? $"Trailing ARMED · peak {_trailPeak:F2} · close at {_trailPeak - _trailDistance:F2}"
                 : "Trailing not armed";
+
+            var cooldownLeft = Math.Max(0, (_autoCooldownUntilUtc - DateTime.UtcNow).TotalSeconds);
+            var cooldownText = cooldownLeft > 0 ? $" · AUTO COOLDOWN {Math.Ceiling(cooldownLeft):0}s" : "";
+            _targetsText.Text =
+                $"Targets: TP CCY {TargetState(_tpCcy)} · SL CCY {TargetState(_slCcy)} · " +
+                $"TP % {TargetState(_tpPct)} · SL % {TargetState(_slPct)} · " +
+                $"Trail {((_trailTrigger > 0 && _trailDistance > 0) ? $"ON {_trailTrigger:0.##}/{_trailDistance:0.##}" : "OFF")} · " +
+                $"Pending {(_includePending ? "ON" : "OFF")} · View {(_proMode ? "PRO" : "SIMPLE")}{cooldownText}";
 
             if (_basketPanel != null && _root.HasChild(_basketPanel))
                 _root.RemoveChild(_basketPanel);
@@ -309,6 +408,9 @@ namespace cAlgo.Plugins
 
         private void EvaluateAutomation()
         {
+            if (DateTime.UtcNow < _autoCooldownUntilUtc)
+                return;
+
             var positions = GetManagedPositions();
             if (positions.Length == 0)
             {
@@ -374,13 +476,15 @@ namespace cAlgo.Plugins
             if (positions.Length == 0)
                 return;
 
+            _autoCooldownUntilUtc = DateTime.UtcNow.AddSeconds(AutoCooldownSeconds);
             var closed = ClosePositions(positions);
             var cancelled = _includePending
                 ? CancelOrders(GetManagedPendingOrders())
-                : (0, 0);
+                : (success: 0, failed: 0, errors: "");
             ResetTrail();
             SetStatus($"{reason} — closed {closed.success}, failed {closed.failed}; " +
-                      $"pending cancelled {cancelled.Item1}, failed {cancelled.Item2}.");
+                      $"pending cancelled {cancelled.success}, failed {cancelled.failed}." +
+                      ErrorSuffix(closed.errors, cancelled.errors));
         }
 
         private void CloseManagedManual()
@@ -405,10 +509,11 @@ namespace cAlgo.Plugins
                 return;
 
             var closed = ClosePositions(positions);
-            var cancelled = _includePending ? CancelOrders(pending) : (0, 0);
+            var cancelled = _includePending ? CancelOrders(pending) : (success: 0, failed: 0, errors: "");
             ResetTrail();
             SetStatus($"Managed close: closed {closed.success}, failed {closed.failed}; " +
-                      $"pending cancelled {cancelled.Item1}, failed {cancelled.Item2}.");
+                      $"pending cancelled {cancelled.success}, failed {cancelled.failed}." +
+                      ErrorSuffix(closed.errors, cancelled.errors));
             RefreshUi();
         }
 
@@ -434,10 +539,11 @@ namespace cAlgo.Plugins
                 return;
 
             var closed = ClosePositions(positions);
-            var cancelled = _includePending ? CancelOrders(pending) : (0, 0);
+            var cancelled = _includePending ? CancelOrders(pending) : (success: 0, failed: 0, errors: "");
             ResetTrail();
             SetStatus($"Whole close: closed {closed.success}, failed {closed.failed}; " +
-                      $"pending cancelled {cancelled.Item1}, failed {cancelled.Item2}.");
+                      $"pending cancelled {cancelled.success}, failed {cancelled.failed}." +
+                      ErrorSuffix(closed.errors, cancelled.errors));
             RefreshUi();
         }
 
@@ -463,40 +569,67 @@ namespace cAlgo.Plugins
             var pending = PendingOrders
                 .Where(o => o.SymbolName == symbolName && o.TradeType == side)
                 .ToArray();
-            var cancelled = _includePending ? CancelOrders(pending) : (0, 0);
+            var cancelled = _includePending ? CancelOrders(pending) : (success: 0, failed: 0, errors: "");
             SetStatus($"{symbolName} {side}: closed {closed.success}, failed {closed.failed}; " +
-                      $"pending cancelled {cancelled.Item1}, failed {cancelled.Item2}.");
+                      $"pending cancelled {cancelled.success}, failed {cancelled.failed}." +
+                      ErrorSuffix(closed.errors, cancelled.errors));
             RefreshUi();
         }
 
-        private (int success, int failed) ClosePositions(Position[] positions)
+        private (int success, int failed, string errors) ClosePositions(Position[] positions)
         {
             var success = 0;
             var failed = 0;
+            var errors = "";
             foreach (var position in positions)
             {
                 var result = position.Close();
                 if (result.IsSuccessful)
                     success++;
                 else
+                {
                     failed++;
+                    AddTradeError(ref errors, $"Close #{position.Id}", result);
+                }
             }
-            return (success, failed);
+            return (success, failed, errors);
         }
 
-        private (int success, int failed) CancelOrders(PendingOrder[] orders)
+        private (int success, int failed, string errors) CancelOrders(PendingOrder[] orders)
         {
             var success = 0;
             var failed = 0;
+            var errors = "";
             foreach (var order in orders)
             {
                 var result = order.Cancel();
                 if (result.IsSuccessful)
                     success++;
                 else
+                {
                     failed++;
+                    AddTradeError(ref errors, $"Cancel #{order.Id}", result);
+                }
             }
-            return (success, failed);
+            return (success, failed, errors);
+        }
+
+        private void AddTradeError(ref string errors, string context, TradeResult result)
+        {
+            if (result.IsSuccessful)
+                return;
+
+            var detail = $"{context}: {result.Error?.ToString() ?? "UnknownError"}";
+            if (string.IsNullOrWhiteSpace(errors))
+                errors = detail;
+            else if (errors.Length < 320)
+                errors += " | " + detail;
+        }
+
+        private string ErrorSuffix(params string[] errors)
+        {
+            var details = string.Join(" | ", errors.Where(e => !string.IsNullOrWhiteSpace(e)));
+            return string.IsNullOrWhiteSpace(details) ? "" : $" Errors: {details}";
         }
 
         private void CloseHalfManaged(bool applyBreakEven)
@@ -522,6 +655,7 @@ namespace cAlgo.Plugins
             var modified = 0;
             var closed = 0;
             var failed = 0;
+            var errors = "";
 
             foreach (var group in positions.GroupBy(p => new { p.SymbolName, p.TradeType }))
             {
@@ -549,7 +683,10 @@ namespace cAlgo.Plugins
                             if (tradeResult.IsSuccessful)
                                 modified++;
                             else
+                            {
                                 failed++;
+                                AddTradeError(ref errors, $"Resize #{position.Id}", tradeResult);
+                            }
                         }
                     }
                     else
@@ -558,7 +695,10 @@ namespace cAlgo.Plugins
                         if (tradeResult.IsSuccessful)
                             closed++;
                         else
+                        {
                             failed++;
+                            AddTradeError(ref errors, $"Close #{position.Id}", tradeResult);
+                        }
                     }
                 }
             }
@@ -566,7 +706,8 @@ namespace cAlgo.Plugins
             if (applyBreakEven)
                 ApplyBreakEven(false);
 
-            SetStatus($"50% reduction: {modified} resized, {closed} closed, {failed} failed.");
+            SetStatus($"50% reduction: {modified} resized, {closed} closed, {failed} failed." +
+                      ErrorSuffix(errors));
             RefreshUi();
         }
 
@@ -581,6 +722,8 @@ namespace cAlgo.Plugins
 
             var success = 0;
             var skipped = 0;
+            var rejected = 0;
+            var errors = "";
             foreach (var group in positions.GroupBy(p => new { p.SymbolName, p.TradeType }))
             {
                 var totalVolume = group.Sum(p => p.VolumeInUnits);
@@ -605,11 +748,15 @@ namespace cAlgo.Plugins
                     if (tradeResult.IsSuccessful)
                         success++;
                     else
-                        skipped++;
+                    {
+                        rejected++;
+                        AddTradeError(ref errors, $"BE #{position.Id}", tradeResult);
+                    }
                 }
             }
 
-            SetStatus($"Break even: {success} updated, {skipped} skipped/rejected.");
+            SetStatus($"Break even: {success} updated, {skipped} skipped (price not beyond BE), {rejected} rejected." +
+                      ErrorSuffix(errors));
             if (showMessage)
                 RefreshUi();
         }
@@ -652,6 +799,7 @@ namespace cAlgo.Plugins
         private void LoadSettings()
         {
             _manageWhole = ReadBool("Mode Whole", true);
+            _proMode = ReadBool("Pro Mode", true);
             _managedSymbol = LocalStorage.GetString("Managed Symbol", LocalStorageScope.Type) ?? "";
             _includePending = ReadBool("Include Pending", false);
             _tpCcy = ReadDouble("TP CCY");
@@ -668,6 +816,7 @@ namespace cAlgo.Plugins
         private void SaveSettings()
         {
             LocalStorage.SetString("Mode Whole", _manageWhole ? "1" : "0", LocalStorageScope.Type);
+            LocalStorage.SetString("Pro Mode", _proMode ? "1" : "0", LocalStorageScope.Type);
             LocalStorage.SetString("Managed Symbol", _managedSymbol ?? "", LocalStorageScope.Type);
             LocalStorage.SetString("Include Pending", _includePending ? "1" : "0", LocalStorageScope.Type);
             LocalStorage.SetString("TP CCY", _tpCcy.ToString(CultureInfo.InvariantCulture), LocalStorageScope.Type);
